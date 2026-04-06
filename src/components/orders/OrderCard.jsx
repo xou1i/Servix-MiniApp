@@ -28,7 +28,7 @@ function OrderCard({ order, roleKey }) {
 
   return (
     <article
-      className="glass-card animate-slide-up flex flex-col gap-4 rounded-2xl p-5 shadow-[0_2px_12px_rgba(21,28,34,0.07)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(21,28,34,0.12)]"
+      className="glass-card h-full animate-slide-up flex flex-col gap-4 rounded-2xl p-5 shadow-[0_2px_12px_rgba(21,28,34,0.07)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(21,28,34,0.12)]"
       style={{ '--delay': '0ms' }}
     >
       {/* Header */}
@@ -71,7 +71,7 @@ function OrderCard({ order, roleKey }) {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between gap-3 border-t border-[var(--surface-high)] pt-3">
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-[var(--surface-high)] pt-3">
         <span className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
           <Clock3 size={13} />
           {minutesLabel}

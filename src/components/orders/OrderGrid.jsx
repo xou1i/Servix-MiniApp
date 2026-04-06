@@ -23,7 +23,7 @@ function OrderGrid({ orders, roleKey }) {
       {orders.map((order, index) => (
         <div
           key={order.id}
-          className="animate-slide-up stagger"
+          className="animate-slide-up stagger h-full"
           style={{ '--delay': `${Math.min(index, 10) * 50}ms` }}
         >
           <OrderCard order={order} roleKey={roleKey} />

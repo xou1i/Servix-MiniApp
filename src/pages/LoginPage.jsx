@@ -6,8 +6,8 @@ import { ROLES } from '../constants/roles';
 import logoSrc from '../assets/Servix - Logo.png';
 
 const ROLE_ICONS = {
-  waiter:  User,
-  chef:    ChefHat,
+  waiter: User,
+  chef: ChefHat,
   barista: Coffee,
 };
 
@@ -45,7 +45,7 @@ function LoginPage({ setRole }) {
         {Object.values(ROLES).map((role, index) => {
           const Icon = ROLE_ICONS[role.key] ?? User;
           const label = isAr ? role.labelAr : role.labelEn;
-          const hint  = isAr ? role.hintAr  : role.hintEn;
+          const hint = isAr ? role.hintAr : role.hintEn;
           return (
             <button
               key={role.key}

@@ -1,34 +1,26 @@
+import { Languages } from 'lucide-react';
 import { useAppState } from '../hooks/useAppState';
 
 function LanguageSwitch() {
   const { language, switchLanguage } = useAppState();
 
+  const toggleLanguage = () => {
+    switchLanguage(language === 'en' ? 'ar' : 'en');
+  };
+
   return (
-    <div className="flex items-center gap-1 rounded-full bg-[var(--surface-mid)] p-1">
-      <button
-        type="button"
-        onClick={() => switchLanguage('en')}
-        className={`cursor-pointer rounded-full px-4 py-1 text-xs font-bold transition-all duration-200 ${
-          language === 'en'
-            ? 'bg-white shadow-sm text-[var(--color-primary)]'
-            : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-        }`}
-      >
-        EN
-      </button>
-      <button
-        type="button"
-        onClick={() => switchLanguage('ar')}
-        className={`cursor-pointer rounded-full px-4 py-1 text-xs font-bold transition-all duration-200 ${
-          language === 'ar'
-            ? 'bg-white shadow-sm text-[var(--color-primary)]'
-            : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-        }`}
-        style={{ fontFamily: "'Cairo', sans-serif" }}
-      >
-        عربي
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={toggleLanguage}
+      className="group relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl bg-(--surface-mid) text-(--text-secondary) transition-all duration-300 hover:bg-(--surface-high) hover:text-(--text-primary) hover:scale-105 active:scale-95 shadow-sm border border-(--surface-high)/50"
+      aria-label={language === 'en' ? 'Switch to Arabic' : 'التبديل إلى الإنجليزية'}
+    >
+      <Languages size={20} className="transition-transform duration-500 group-hover:rotate-12" />
+      
+      <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-lg bg-(--color-primary) text-[10px] font-black text-white shadow-md ring-2 ring-(--surface-low) uppercase transition-all duration-300 group-hover:scale-110 group-active:scale-90">
+        {language}
+      </span>
+    </button>
   );
 }
 

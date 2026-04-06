@@ -8,9 +8,9 @@ import logoSrc from '../assets/Servix - Logo.png';
 import iconSrc from '../assets/Servix - Icon.png';
 
 const NAV_ITEMS = [
-  { to: '/orders',        Icon: ShoppingBag, labelAr: 'الطلبات',   labelEn: 'Orders' },
-  { to: '/notifications', Icon: Bell,        labelAr: 'التنبيهات', labelEn: 'Notifications' },
-  { to: '/profile',       Icon: User,        labelAr: 'الملف',     labelEn: 'Profile' },
+  { to: '/orders', Icon: ShoppingBag, labelAr: 'الطلبات', labelEn: 'Orders' },
+  { to: '/notifications', Icon: Bell, labelAr: 'التنبيهات', labelEn: 'Notifications' },
+  { to: '/profile', Icon: User, labelAr: 'الملف', labelEn: 'Profile' },
 ];
 
 function SideNavbar({ roleKey, logout }) {
@@ -38,10 +38,9 @@ function SideNavbar({ roleKey, logout }) {
             to={to}
             onClick={() => setMobileOpen(false)}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-all duration-200 ease-out relative ${
-                isActive
-                  ? 'bg-white text-[var(--color-primary)] shadow-sm'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)]'
+              `flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition-all duration-200 ease-out relative ${isActive
+                ? 'bg-white text-[var(--color-primary)] shadow-sm'
+                : 'text-[var(--text-secondary)] hover:bg-[var(--surface-mid)] hover:text-[var(--text-primary)]'
               }`
             }
           >
