@@ -1,21 +1,18 @@
 import { Outlet } from 'react-router-dom';
-import SideNavbar from '../components/SideNavbar';
+import TopNavbar from '../components/TopNavbar';
 
 function DashboardLayout({ roleKey, logout }) {
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Sidebar (desktop) + Top bar (mobile) */}
-      <SideNavbar roleKey={roleKey} logout={logout} />
+    <div className="min-h-screen flex flex-col">
+      {/* Floating Top Navbar */}
+      <TopNavbar roleKey={roleKey} logout={logout} />
 
       {/* Main content */}
-      <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-        {/* Mobile top bar spacing is handled by SideNavbar's header element */}
-        <main className="flex-1 overflow-y-auto p-5 md:p-7">
-          <div className="mx-auto max-w-[1200px]">
-            <Outlet />
-          </div>
-        </main>
-      </div>
+      <main className="flex-1 main-with-topnav px-5 pb-6 md:px-7">
+        <div className="mx-auto max-w-[1200px]">
+          <Outlet />
+        </div>
+      </main>
     </div>
   );
 }

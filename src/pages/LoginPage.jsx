@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChefHat, Coffee, User } from 'lucide-react';
+import { ChefHat, Coffee, User, Banknote } from 'lucide-react';
 import LanguageSwitch from '../components/LanguageSwitch';
 import { useAppState } from '../hooks/useAppState';
 import { ROLES } from '../constants/roles';
@@ -9,6 +9,7 @@ const ROLE_ICONS = {
   waiter: User,
   chef: ChefHat,
   barista: Coffee,
+  cashier: Banknote,
 };
 
 function LoginPage({ setRole }) {
@@ -41,7 +42,7 @@ function LoginPage({ setRole }) {
       </div>
 
       {/* Role cards */}
-      <div className="grid w-full max-w-4xl grid-cols-1 gap-6 sm:grid-cols-3">
+      <div className="grid w-full max-w-5xl grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {Object.values(ROLES).map((role, index) => {
           const Icon = ROLE_ICONS[role.key] ?? User;
           const label = isAr ? role.labelAr : role.labelEn;
@@ -51,30 +52,30 @@ function LoginPage({ setRole }) {
               key={role.key}
               type="button"
               onClick={() => setRole(role.key)}
-              className="glass-panel group flex cursor-pointer flex-col items-center rounded-3xl p-8 text-center transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 animate-slide-up"
+              className="glass-panel group flex cursor-pointer flex-col items-center rounded-3xl p-7 text-center transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 animate-slide-up"
               style={{ animationDelay: `${index * 80}ms` }}
             >
               {/* Icon circle */}
               <div
-                className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl transition-all duration-300 group-hover:scale-105"
+                className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl transition-all duration-300 group-hover:scale-105"
                 style={{ background: `${role.color}12` }}
               >
-                <Icon size={32} style={{ color: role.color }} strokeWidth={1.75} />
+                <Icon size={28} style={{ color: role.color }} strokeWidth={1.75} />
               </div>
 
               <h3
-                className="font-headline text-xl font-bold mb-2"
+                className="font-headline text-lg font-bold mb-1.5"
                 style={{ color: role.color }}
               >
                 {label}
               </h3>
-              <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-6">
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-5">
                 {hint}
               </p>
 
               {/* CTA arrow */}
               <div
-                className="flex h-11 w-11 items-center justify-center rounded-full border-2 transition-all duration-300 group-hover:text-white"
+                className="flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-300 group-hover:text-white"
                 style={{
                   borderColor: role.color,
                   color: role.color,
@@ -82,7 +83,7 @@ function LoginPage({ setRole }) {
                 onMouseEnter={(e) => { e.currentTarget.style.background = role.color; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   {isAr
                     ? <><polyline points="15 18 9 12 15 6" /></>
                     : <><polyline points="9 18 15 12 9 6" /></>

@@ -8,6 +8,7 @@ function RoleBadge({ roleKey, lang = 'ar' }) {
     waiter:  'role-waiter-bg role-waiter-text',
     chef:    'role-chef-bg role-chef-text',
     barista: 'role-barista-bg role-barista-text',
+    cashier: 'role-cashier-bg role-cashier-text',
   };
   return (
     <span

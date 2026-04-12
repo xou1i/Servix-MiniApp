@@ -39,7 +39,7 @@ function ProfilePage({ roleKey, logout }) {
               </h2>
             </div>
           </div>
-          
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl bg-[var(--surface-low)] p-4">
               <p className="text-xs font-bold text-[var(--text-muted)]">
@@ -65,11 +65,11 @@ function ProfilePage({ roleKey, logout }) {
           <h3 className="font-headline text-lg font-bold text-[var(--text-primary)] mb-4">
             {isAr ? 'إجراءات الحساب' : 'Account Actions'}
           </h3>
-          
+
           <div className="flex-1 space-y-4">
             <p className="text-sm text-[var(--text-muted)]">
-              {isAr 
-                ? 'يمكنك تسجيل الخروج لتبديل الدور أو إنهاء الوردية الخاصة بك.' 
+              {isAr
+                ? 'يمكنك تسجيل الخروج لتبديل الدور أو إنهاء الوردية الخاصة بك.'
                 : 'You can logout to switch roles or end your current shift.'}
             </p>
           </div>

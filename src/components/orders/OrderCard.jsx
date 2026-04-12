@@ -8,9 +8,12 @@ import { DEPARTMENT } from '../../constants/roles';
 const ACTION_STYLE = {
   preparing: 'bg-[var(--color-preparing)] text-slate-900',
   ready:     'bg-[var(--color-ready)] text-white',
-  served:    'bg-[var(--color-teal)] text-white',
+  completed: 'bg-[var(--color-teal)] text-white',
   cancelled: 'bg-slate-300 text-slate-700',
 };
+
+/** Only Chef and Barista can modify order status */
+const STATUS_MODIFIERS = ['chef', 'barista'];
 
 function OrderCard({ order, roleKey }) {
   const { updateOrderStatus, language } = useAppState();
@@ -21,7 +24,8 @@ function OrderCard({ order, roleKey }) {
   if (roleKey === 'chef')    displayItems = order.kitchenItems;
   if (roleKey === 'barista') displayItems = order.baristaItems;
 
-  const nextActions = getNextStatusActions(order.status);
+  const canModifyStatus = STATUS_MODIFIERS.includes(roleKey);
+  const nextActions = canModifyStatus ? getNextStatusActions(order.status) : [];
   const minutesLabel = isAr
     ? `منذ ${order.minutesAgo} ${order.minutesAgo === 1 ? 'دقيقة' : 'دقيقة'}`
     : `${order.minutesAgo}m ago`;
@@ -77,21 +81,23 @@ function OrderCard({ order, roleKey }) {
           {minutesLabel}
         </span>
 
-        {/* Action buttons */}
-        <div className="flex flex-wrap gap-2 justify-end">
-          {nextActions
-            .filter((s) => s !== 'cancelled') // hide cancel for cleaner UI
-            .map((status) => (
-              <button
-                key={status}
-                type="button"
-                onClick={() => updateOrderStatus(order.id, status)}
-                className={`cursor-pointer rounded-lg px-3.5 py-1.5 text-[0.72rem] font-bold transition-all duration-200 ease-out hover:scale-[1.03] active:scale-95 ${ACTION_STYLE[status] ?? 'bg-slate-200 text-slate-700'}`}
-              >
-                {getActionLabel(status, language)}
-              </button>
-            ))}
-        </div>
+        {/* Action buttons — only for Chef/Barista */}
+        {nextActions.length > 0 && (
+          <div className="flex flex-wrap gap-2 justify-end">
+            {nextActions
+              .filter((s) => s !== 'cancelled') // hide cancel for cleaner UI
+              .map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => updateOrderStatus(order.id, status)}
+                  className={`cursor-pointer rounded-lg px-3.5 py-1.5 text-[0.72rem] font-bold transition-all duration-200 ease-out hover:scale-[1.03] active:scale-95 ${ACTION_STYLE[status] ?? 'bg-slate-200 text-slate-700'}`}
+                >
+                  {getActionLabel(status, language)}
+                </button>
+              ))}
+          </div>
+        )}
       </div>
     </article>
   );

@@ -27,6 +27,15 @@ export const ROLES = {
     color: '#7209B7',
     dept: 'barista',
   },
+  cashier: {
+    key: 'cashier',
+    labelAr: 'الكاشير',
+    labelEn: 'Cashier',
+    hintAr: 'إدارة الفواتير والدفعات',
+    hintEn: 'Manage billing and payments',
+    color: '#1D4E89',
+    dept: 'all',
+  },
 };
 
 export const ROLE_KEYS = Object.keys(ROLES);

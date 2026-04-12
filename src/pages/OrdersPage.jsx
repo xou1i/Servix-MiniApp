@@ -6,6 +6,9 @@ import MenuSelector from '../components/orders/MenuSelector';
 import { useAppState } from '../hooks/useAppState';
 import { filterOrders, resolveDepartmentScope } from '../utils/orderFilters';
 import { ROLES } from '../constants/roles';
+import { ORDER_STATUS } from '../utils/status';
+
+const COMPLETED_STATUSES = [ORDER_STATUS.completed, ORDER_STATUS.cancelled];
 
 function OrdersPage({ roleKey }) {
   const { orders, language } = useAppState();
@@ -15,9 +18,15 @@ function OrdersPage({ roleKey }) {
 
   const departmentKey = useMemo(() => resolveDepartmentScope(roleKey, 'auto'), [roleKey]);
 
+  // Filter out completed orders (they belong in History)
+  const activeOrders = useMemo(
+    () => orders.filter((o) => !COMPLETED_STATUSES.includes(o.status)),
+    [orders],
+  );
+
   const filteredOrders = useMemo(
-    () => filterOrders(orders, { normalizedQuery: '', statusFilter, departmentKey }),
-    [orders, statusFilter, departmentKey],
+    () => filterOrders(activeOrders, { normalizedQuery: '', statusFilter, departmentKey }),
+    [activeOrders, statusFilter, departmentKey],
   );
 
   const role = ROLES[roleKey];
@@ -37,8 +46,8 @@ function OrdersPage({ roleKey }) {
           </p>
         </div>
 
-        {/* Waiter: create order button */}
-        {roleKey === 'waiter' && (
+        {/* Waiter/Cashier: create order button */}
+        {(roleKey === 'waiter' || roleKey === 'cashier') && (
           <button
             type="button"
             onClick={() => setShowMenu(true)}

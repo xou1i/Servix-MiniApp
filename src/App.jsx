@@ -5,6 +5,7 @@ import { useRole } from './hooks/useRole';
 import { useAppState } from './hooks/useAppState';
 import LoginPage from './pages/LoginPage';
 import OrdersPage from './pages/OrdersPage';
+import HistoryPage from './pages/HistoryPage';
 import NotificationsPage from './pages/NotificationsPage';
 import ProfilePage from './pages/ProfilePage';
 
@@ -26,6 +27,10 @@ function App() {
       <Route element={<DashboardLayout roleKey={role} logout={logout} />}>
         <Route path="/" element={<Navigate to="/orders" replace />} />
         <Route path="/orders" element={<OrdersPage roleKey={role} />} />
+        <Route path="/history" element={<HistoryPage roleKey={role} />} />
+        {/* Tables & Menu are placeholders — redirect to orders for now */}
+        <Route path="/tables" element={<Navigate to="/orders" replace />} />
+        <Route path="/menu" element={<Navigate to="/orders" replace />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/profile" element={<ProfilePage roleKey={role} logout={logout} />} />
       </Route>

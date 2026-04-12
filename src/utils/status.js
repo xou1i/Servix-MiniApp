@@ -2,7 +2,7 @@ export const ORDER_STATUS = {
   pending:   'pending',
   preparing: 'preparing',
   ready:     'ready',
-  served:    'served',
+  completed: 'completed',
   cancelled: 'cancelled',
 };
 
@@ -25,11 +25,11 @@ export const STATUS_META = {
     label:   'جاهز',
     color:   'status-ready',
   },
-  [ORDER_STATUS.served]: {
-    labelAr: 'تم التقديم',
-    labelEn: 'Served',
-    label:   'تم التقديم',
-    color:   'status-served',
+  [ORDER_STATUS.completed]: {
+    labelAr: 'مكتمل',
+    labelEn: 'Completed',
+    label:   'مكتمل',
+    color:   'status-completed',
   },
   [ORDER_STATUS.cancelled]: {
     labelAr: 'ملغي',
