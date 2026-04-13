@@ -7,7 +7,7 @@ import LoginPage from './pages/LoginPage';
 import OrdersPage from './pages/OrdersPage';
 import HistoryPage from './pages/HistoryPage';
 import NotificationsPage from './pages/NotificationsPage';
-import ProfilePage from './pages/ProfilePage';
+
 
 function App() {
   const { role, setRole, logout } = useRole();
@@ -32,7 +32,7 @@ function App() {
         <Route path="/tables" element={<Navigate to="/orders" replace />} />
         <Route path="/menu" element={<Navigate to="/orders" replace />} />
         <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/profile" element={<ProfilePage roleKey={role} logout={logout} />} />
+
       </Route>
       {/* Catch-all fallback */}
       <Route path="*" element={<Navigate to="/orders" replace />} />

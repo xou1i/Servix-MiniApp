@@ -4,7 +4,7 @@ import {
   ShoppingBag,
   Clock,
   Bell,
-  User,
+
   LogOut,
   Menu,
   X,
@@ -43,7 +43,7 @@ function TopNavbar({ roleKey, logout }) {
             <img src={iconSrc} alt="Servix" className="h-8 w-auto sm:hidden" />
           </NavLink>
 
-          <div className="hidden sm:flex items-center gap-0.5 ms-3 flex-1">
+          <div className="hidden sm:flex items-center gap-2 ms-3 flex-1">
             {NAV_ITEMS.map(({ to, Icon, labelAr, labelEn }) => (
               <NavLink
                 key={to}
@@ -98,16 +98,7 @@ function TopNavbar({ roleKey, logout }) {
               )}
             </NavLink>
 
-            {/* Profile */}
-            <NavLink
-              to="/profile"
-              className={({ isActive }) =>
-                `btn-icon ${isActive ? 'bg-[var(--surface-mid)] text-[var(--color-primary)]' : ''}`
-              }
-              title={isAr ? 'الملف الشخصي' : 'Profile'}
-            >
-              <User size={18} />
-            </NavLink>
+
 
             {/* Logout (desktop) */}
             <button

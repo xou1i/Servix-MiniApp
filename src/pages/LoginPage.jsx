@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChefHat, Coffee, User, Banknote } from 'lucide-react';
-import LanguageSwitch from '../components/LanguageSwitch';
+
 import { useAppState } from '../hooks/useAppState';
 import { ROLES } from '../constants/roles';
 import logoSrc from '../assets/Servix - Logo.png';
@@ -23,10 +23,7 @@ function LoginPage({ setRole }) {
         background: 'radial-gradient(circle at 15% 15%, rgba(29,78,137,0.06) 0%, transparent 55%), radial-gradient(circle at 85% 85%, rgba(31,168,155,0.06) 0%, transparent 55%), var(--surface)',
       }}
     >
-      {/* Language toggle at top end */}
-      <div className="absolute top-6 end-6">
-        <LanguageSwitch />
-      </div>
+
 
       {/* Logo + tagline */}
       <div className="mb-12 flex flex-col items-center text-center animate-slide-up">

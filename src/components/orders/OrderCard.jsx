@@ -1,8 +1,9 @@
-import { Clock3, UtensilsCrossed, NotebookPen } from 'lucide-react';
+import { Clock3, UtensilsCrossed, NotebookPen, X } from 'lucide-react';
 import StatusBadge from '../StatusBadge';
 import { useAppState } from '../../hooks/useAppState';
 import { getNextStatusActions, getActionLabel } from '../../utils/orderWorkflow';
 import { DEPARTMENT } from '../../constants/roles';
+import { ORDER_STATUS } from '../../utils/status';
 
 /** Maps action status to button accent color */
 const ACTION_STYLE = {
@@ -15,6 +16,9 @@ const ACTION_STYLE = {
 /** Only Chef and Barista can modify order status */
 const STATUS_MODIFIERS = ['chef', 'barista'];
 
+/** Only Waiter and Cashier can cancel orders */
+const CANCEL_ROLES = ['waiter', 'cashier'];
+
 function OrderCard({ order, roleKey }) {
   const { updateOrderStatus, language } = useAppState();
   const isAr = language !== 'en';
@@ -25,6 +29,9 @@ function OrderCard({ order, roleKey }) {
   if (roleKey === 'barista') displayItems = order.baristaItems;
 
   const canModifyStatus = STATUS_MODIFIERS.includes(roleKey);
+  const canCancel = CANCEL_ROLES.includes(roleKey)
+    && order.status !== ORDER_STATUS.completed
+    && order.status !== ORDER_STATUS.cancelled;
   const nextActions = canModifyStatus ? getNextStatusActions(order.status) : [];
   const minutesLabel = isAr
     ? `منذ ${order.minutesAgo} ${order.minutesAgo === 1 ? 'دقيقة' : 'دقيقة'}`
@@ -76,27 +83,44 @@ function OrderCard({ order, roleKey }) {
 
       {/* Footer */}
       <div className="mt-auto flex items-center justify-between gap-3 border-t border-[var(--surface-high)] pt-3">
-        <span className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-          <Clock3 size={13} />
-          {minutesLabel}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+            <Clock3 size={13} />
+            {minutesLabel}
+          </span>
 
-        {/* Action buttons — only for Chef/Barista */}
-        {nextActions.length > 0 && (
-          <div className="flex flex-wrap gap-2 justify-end">
-            {nextActions
-              .filter((s) => s !== 'cancelled') // hide cancel for cleaner UI
-              .map((status) => (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() => updateOrderStatus(order.id, status)}
-                  className={`cursor-pointer rounded-lg px-3.5 py-1.5 text-[0.72rem] font-bold transition-all duration-200 ease-out hover:scale-[1.03] active:scale-95 ${ACTION_STYLE[status] ?? 'bg-slate-200 text-slate-700'}`}
-                >
-                  {getActionLabel(status, language)}
-                </button>
-              ))}
-          </div>
+          {/* Action buttons — only for Chef/Barista */}
+          {nextActions.length > 0 && (
+            <div className="flex flex-wrap gap-2 justify-end">
+              {nextActions
+                .filter((s) => s !== 'cancelled') // hide cancel for cleaner UI
+                .map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => updateOrderStatus(order.id, status)}
+                    className={`cursor-pointer rounded-lg px-3.5 py-1.5 text-[0.72rem] font-bold transition-all duration-200 ease-out hover:scale-[1.03] active:scale-95 ${ACTION_STYLE[status] ?? 'bg-slate-200 text-slate-700'}`}
+                  >
+                    {getActionLabel(status, language)}
+                  </button>
+                ))}
+            </div>
+          )}
+        </div>
+
+        {/* Cancel button — only for Waiter/Cashier (left side in RTL) */}
+        {canCancel && (
+          <button
+            type="button"
+            onClick={() => updateOrderStatus(order.id, ORDER_STATUS.cancelled)}
+            className="cancel-order-btn cursor-pointer flex items-center gap-1 rounded-lg px-2.5 py-1 text-[0.7rem] font-bold transition-all duration-200 ease-out active:scale-95"
+            style={{ background: '#EDF4FD', color: 'var(--text-muted)', border: '1px solid transparent' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#FEE2E2'; e.currentTarget.style.color = '#DC2626'; e.currentTarget.style.borderColor = '#FECACA'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#EDF4FD'; e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'transparent'; }}
+          >
+            <X size={12} strokeWidth={2.5} />
+            {isAr ? 'إلغاء' : 'Cancel'}
+          </button>
         )}
       </div>
     </article>
