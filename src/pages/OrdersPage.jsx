@@ -2,19 +2,19 @@ import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import OrderGrid from '../components/orders/OrderGrid';
 import OrdersFilterBar from '../components/orders/OrdersFilterBar';
-import MenuSelector from '../components/orders/MenuSelector';
 import { useAppState } from '../hooks/useAppState';
+import { useNavigate } from 'react-router-dom';
 import { filterOrders, resolveDepartmentScope } from '../utils/orderFilters';
 import { ROLES } from '../constants/roles';
 import { ORDER_STATUS } from '../utils/status';
 
-const COMPLETED_STATUSES = [ORDER_STATUS.completed, ORDER_STATUS.cancelled];
+const COMPLETED_STATUSES = [ORDER_STATUS.served, ORDER_STATUS.billed, ORDER_STATUS.paid, ORDER_STATUS.cancelled];
 
 function OrdersPage({ roleKey }) {
   const { orders, language } = useAppState();
   const isAr = language !== 'en';
   const [statusFilter, setStatusFilter] = useState('all');
-  const [showMenu, setShowMenu] = useState(false);
+  const navigate = useNavigate();
 
   const departmentKey = useMemo(() => resolveDepartmentScope(roleKey, 'auto'), [roleKey]);
 
@@ -50,7 +50,7 @@ function OrdersPage({ roleKey }) {
         {(roleKey === 'waiter' || roleKey === 'cashier') && (
           <button
             type="button"
-            onClick={() => setShowMenu(true)}
+            onClick={() => navigate('/pos')}
             className="btn-primary shrink-0"
           >
             <Plus size={16} />
@@ -69,8 +69,6 @@ function OrdersPage({ roleKey }) {
       {/* Orders grid */}
       <OrderGrid orders={filteredOrders} roleKey={roleKey} />
 
-      {/* Menu selector modal */}
-      {showMenu && <MenuSelector onClose={() => setShowMenu(false)} />}
     </section>
   );
 }

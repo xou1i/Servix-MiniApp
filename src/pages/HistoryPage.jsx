@@ -4,24 +4,24 @@ import OrderCard from '../components/orders/OrderCard';
 import { useAppState } from '../hooks/useAppState';
 import { ORDER_STATUS } from '../utils/status';
 
-const COMPLETED_STATUSES = [ORDER_STATUS.completed, ORDER_STATUS.cancelled];
+const COMPLETED_STATUSES = [ORDER_STATUS.paid, ORDER_STATUS.cancelled];
 
 const FILTERS = {
   ar: [
     { key: 'all',       label: 'الكل' },
-    { key: 'completed',  label: 'مكتمل' },
+    { key: 'paid',      label: 'مدفوع' },
     { key: 'cancelled', label: 'ملغي' },
   ],
   en: [
     { key: 'all',       label: 'All' },
-    { key: 'completed',  label: 'Completed' },
+    { key: 'paid',      label: 'Paid' },
     { key: 'cancelled', label: 'Cancelled' },
   ],
 };
 
 const ACTIVE_COLOR = {
   all:       'bg-white text-[var(--color-primary)] shadow-sm',
-  completed: 'bg-[var(--color-teal)] text-white shadow-sm',
+  paid:      'bg-[var(--color-teal)] text-white shadow-sm',
   cancelled: 'bg-slate-400 text-white shadow-sm',
 };
 

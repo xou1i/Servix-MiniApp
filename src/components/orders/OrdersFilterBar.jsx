@@ -2,24 +2,23 @@ import { useAppState } from '../../hooks/useAppState';
 
 const FILTERS = {
   ar: [
-    { key: 'all',       label: 'الكل' },
-    { key: 'pending',   label: 'قيد الانتظار' },
-    { key: 'preparing', label: 'قيد التحضير' },
-    { key: 'ready',     label: 'جاهز' },
+    { key: 'all',             label: 'الكل' },
+    { key: 'preparing',       label: 'قيد التحضير' },
+    { key: 'ready',           label: 'جاهز' },
   ],
   en: [
-    { key: 'all',       label: 'All' },
-    { key: 'pending',   label: 'Pending' },
-    { key: 'preparing', label: 'Preparing' },
-    { key: 'ready',     label: 'Ready' },
+    { key: 'all',             label: 'All' },
+    { key: 'preparing',       label: 'Preparing' },
+    { key: 'ready',           label: 'Ready' },
   ],
 };
 
 const ACTIVE_COLOR = {
-  all:       'bg-white text-[var(--color-primary)] shadow-sm',
-  pending:   'bg-white text-[#495057] shadow-sm',
-  preparing: 'bg-[var(--color-preparing)] text-slate-900 shadow-sm',
-  ready:     'bg-[var(--color-ready)] text-white shadow-sm',
+  all:             'bg-white text-[var(--color-primary)] shadow-sm',
+  sent_to_kitchen: 'bg-white text-[#495057] shadow-sm',
+  preparing:       'bg-[var(--color-preparing)] text-slate-900 shadow-sm',
+  ready:           'bg-[var(--color-ready)] text-white shadow-sm',
+  served:          'bg-indigo-500 text-white shadow-sm',
 };
 
 function OrdersFilterBar({ statusFilter, onStatusChange, resultCount }) {

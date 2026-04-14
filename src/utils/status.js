@@ -1,16 +1,25 @@
 export const ORDER_STATUS = {
-  pending:   'pending',
+  draft: 'draft',
+  sent_to_kitchen: 'sent_to_kitchen',
   preparing: 'preparing',
-  ready:     'ready',
-  completed: 'completed',
+  ready: 'ready',
+  served: 'served',
+  billed: 'billed',
+  paid: 'paid',
   cancelled: 'cancelled',
 };
 
 export const STATUS_META = {
-  [ORDER_STATUS.pending]: {
-    labelAr: 'قيد الانتظار',
-    labelEn: 'Pending',
-    label:   'قيد الانتظار',
+  [ORDER_STATUS.draft]: {
+    labelAr: 'مسودة',
+    labelEn: 'Draft',
+    label:   'مسودة',
+    color:   'status-pending', // Reusing light grey
+  },
+  [ORDER_STATUS.sent_to_kitchen]: {
+    labelAr: 'أُرسل للمطبخ',
+    labelEn: 'Sent to Kitchen',
+    label:   'أُرسل للمطبخ',
     color:   'status-pending',
   },
   [ORDER_STATUS.preparing]: {
@@ -20,16 +29,28 @@ export const STATUS_META = {
     color:   'status-preparing',
   },
   [ORDER_STATUS.ready]: {
-    labelAr: 'جاهز',
+    labelAr: 'جاهز للاستلام',
     labelEn: 'Ready',
-    label:   'جاهز',
+    label:   'جاهز للاستلام',
     color:   'status-ready',
   },
-  [ORDER_STATUS.completed]: {
-    labelAr: 'مكتمل',
-    labelEn: 'Completed',
-    label:   'مكتمل',
+  [ORDER_STATUS.served]: {
+    labelAr: 'تم التقديم',
+    labelEn: 'Served',
+    label:   'تم التقديم',
     color:   'status-completed',
+  },
+  [ORDER_STATUS.billed]: {
+    labelAr: 'في انتظار الدفع',
+    labelEn: 'Billed',
+    label:   'في انتظار الدفع',
+    color:   'status-preparing', // usually orange or distinct for bills
+  },
+  [ORDER_STATUS.paid]: {
+    labelAr: 'مدفوع (مكتمل)',
+    labelEn: 'Paid',
+    label:   'مدفوع (مكتمل)',
+    color:   'status-completed', // green
   },
   [ORDER_STATUS.cancelled]: {
     labelAr: 'ملغي',

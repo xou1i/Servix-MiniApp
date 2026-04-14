@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { mockOrders } from '../data/mockOrders';
 import { NOTIFICATION_TYPES, seedNotifications } from '../data/mockNotifications';
 import { AppStateContext } from './appStateContext';
-import { STATUS_META } from '../utils/status';
+import { STATUS_META, ORDER_STATUS } from '../utils/status';
 import { generateId } from '../utils/id';
 import { routeItems } from '../data/menu';
 
@@ -45,21 +45,75 @@ export function AppStateProvider({ children }) {
     });
   }, [language]);
 
+  const updateDepartmentStatus = useCallback((orderId, department, nextStatus) => {
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id !== orderId) return o;
+        
+        const newKitchenStatus = department === 'kitchen' ? nextStatus : o.kitchenStatus;
+        const newBaristaStatus = department === 'barista' ? nextStatus : o.baristaStatus;
+        
+        const resolvedStatuses = [ORDER_STATUS.ready, ORDER_STATUS.served, ORDER_STATUS.billed, ORDER_STATUS.paid, ORDER_STATUS.cancelled];
+        const kitchenResolved = !o.kitchenItems?.length || resolvedStatuses.includes(newKitchenStatus);
+        const baristaResolved = !o.baristaItems?.length || resolvedStatuses.includes(newBaristaStatus);
+        
+        // If both departments are resolved to at least 'ready', sync parent dynamically
+        let newOrderStatus = o.status;
+        if (kitchenResolved && baristaResolved) {
+           newOrderStatus = (newKitchenStatus === ORDER_STATUS.served || newBaristaStatus === ORDER_STATUS.served) ? ORDER_STATUS.served : ORDER_STATUS.ready;
+        }
+        
+        return { 
+          ...o, 
+          kitchenStatus: newKitchenStatus, 
+          baristaStatus: newBaristaStatus, 
+          status: newOrderStatus 
+        };
+      })
+    );
+  }, []);
+
   const addOrder = useCallback(
-    ({ selectedIds, table, notes }) => {
-      const { kitchenItems, baristaItems } = routeItems(selectedIds, language);
-      const items = [...kitchenItems, ...baristaItems];
-      if (items.length === 0) return;
+    ({ cartPayload, type, tableId, delivery, orderNote }) => {
+      if (!cartPayload || cartPayload.length === 0) return;
+      
+      const kitchenItems = [];
+      const baristaItems = [];
+      const flatItems = [];
+
+      cartPayload.forEach(item => {
+        // Construct visual title line with qty 
+        const qtyString = item.qty > 1 ? `${item.qty}x ` : '';
+        const title = `${qtyString}${item.name}`;
+        
+        flatItems.push(title);
+
+        // Departmental Splitting Logic
+        // In real backend integration, target_department will be provided 
+        // Currently mapping our mock UI categories:
+        if (item.product?.category === 'cat_drinks' || item.product?.category === 'drink') {
+           baristaItems.push(title);
+        } else {
+           kitchenItems.push(title);
+        }
+      });
+
       const id = `ORD-${Math.floor(2049 + Math.random() * 900)}`;
+      const tableDisplay = type === 'takeaway' ? 'سفري' : type === 'delivery' ? 'توصيل' : tableId || 'صالة';
+
       const newOrder = {
         id,
-        table: table || 'T?',
+        table: tableDisplay,
+        type,
+        delivery,
         kitchenItems,
         baristaItems,
-        items,
+        items: flatItems,
         minutesAgo: 0,
-        status: 'pending',
-        notes: notes || '',
+        status: ORDER_STATUS.preparing,
+        kitchenStatus: kitchenItems.length > 0 ? ORDER_STATUS.preparing : null,
+        baristaStatus: baristaItems.length > 0 ? ORDER_STATUS.preparing : null,
+        notes: [orderNote, ...cartPayload.map(c => c.notes).filter(Boolean)].filter(Boolean).join(' | ') || '',
       };
       setOrders((prev) => [newOrder, ...prev]);
       setNotifications((prev) => [
@@ -69,8 +123,8 @@ export function AppStateProvider({ children }) {
           title: language === 'en' ? 'New Order Received' : 'طلب جديد وصل',
           body:
             language === 'en'
-              ? `Order ${id} for table ${table} — ${items.slice(0, 3).join(', ')}${items.length > 3 ? '...' : ''}`
-              : `الطلب ${id} للطاولة ${table} — ${items.slice(0, 3).join('، ')}${items.length > 3 ? '...' : ''}`,
+              ? `Order ${id} for ${tableDisplay} — ${flatItems.slice(0, 3).join(', ')}${flatItems.length > 3 ? '...' : ''}`
+              : `الطلب ${id} لـ ${tableDisplay} — ${flatItems.slice(0, 3).join('، ')}${flatItems.length > 3 ? '...' : ''}`,
           read: false,
           createdAt: Date.now(),
           orderId: id,
@@ -111,6 +165,7 @@ export function AppStateProvider({ children }) {
       orders,
       setOrders,
       updateOrderStatus,
+      updateDepartmentStatus,
       addOrder,
       notifications,
       markNotificationRead,
@@ -119,7 +174,7 @@ export function AppStateProvider({ children }) {
       language,
       switchLanguage,
     }),
-    [orders, updateOrderStatus, addOrder, notifications, markNotificationRead, markAllNotificationsRead, pushNotification, language, switchLanguage],
+    [orders, updateOrderStatus, updateDepartmentStatus, addOrder, notifications, markNotificationRead, markAllNotificationsRead, pushNotification, language, switchLanguage],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

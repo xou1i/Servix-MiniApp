@@ -4,7 +4,7 @@ import {
   ShoppingBag,
   Clock,
   Bell,
-
+  Receipt,
   LogOut,
   Menu,
   X,
@@ -15,12 +15,15 @@ import LanguageSwitch from './LanguageSwitch';
 import iconSrc from '../assets/Servix - Icon.png';
 import logoSrc from '../assets/Servix - Logo.png';
 
-const NAV_ITEMS = [
-  { to: '/orders',  Icon: ShoppingBag, labelAr: 'الطلبات',  labelEn: 'Orders' },
-  { to: '/history', Icon: Clock,        labelAr: 'السجل',    labelEn: 'History' },
-];
+export default function TopNavbar({ roleKey, logout }) {
+  const NAV_ITEMS = [
+    { to: '/orders',  Icon: ShoppingBag, labelAr: 'الطلبات',  labelEn: 'Orders' },
+    { to: '/history', Icon: Clock,        labelAr: 'السجل',    labelEn: 'History' },
+  ];
 
-function TopNavbar({ roleKey, logout }) {
+  if (roleKey === 'cashier') {
+    NAV_ITEMS.splice(1, 0, { to: '/bills', Icon: Receipt, labelAr: 'الفواتير', labelEn: 'Bills' });
+  }
   const { notifications, language } = useAppState();
   const isAr = language !== 'en';
   const unread = notifications.filter((n) => !n.read).length;
@@ -180,5 +183,3 @@ function TopNavbar({ roleKey, logout }) {
     </>
   );
 }
-
-export default TopNavbar;
