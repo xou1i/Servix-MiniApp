@@ -1,35 +1,23 @@
 import { useState, useCallback } from 'react';
-import { authService } from '../api/authService';
-
-const TOKEN_KEY = 'servix_token';
-const USER_KEY  = 'servix_user';
-
-function loadUser() {
-  try {
-    const raw = localStorage.getItem(USER_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
+import { authService } from '../services/auth.service';
 
 /**
- * useAuth — replaces the old useRole hook.
+ * useAuth — Authentication hook.
  *
- * Exposes:
+ * Provides:
  *   user        → { id, firstName, lastName, role } | null
- *   role        → user.role.toLowerCase() | ''   (keeps compat with old code)
- *   login(email, password, selectedRole) → throws on mismatch / error
+ *   role        → user.role.toLowerCase() | ''   (backward compatible)
+ *   login(email, password, selectedRole) → throws on mismatch
  *   logout()
- *   loading     → true while API call is in-flight
+ *   loading     → true during API call
  *   error       → string | null
  */
 export function useAuth() {
-  const [user,    setUser]    = useState(loadUser);
+  const [user,    setUser]    = useState(() => authService.getStoredUser());
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
 
-  // role key compatible with existing app (lowercase)
+  // Lowercase role key — compatible with existing app (ROLES object keys)
   const role = user?.role?.toLowerCase() ?? '';
 
   const login = useCallback(async (email, password, selectedRole) => {
@@ -37,44 +25,41 @@ export function useAuth() {
     setError(null);
 
     try {
-      // 1️⃣ Login → get token + user from response body
-      const { token, user: loginUser } = await authService.login({ email, password });
+      // 1. POST /Auth/login → get token + user
+      //    selectedRole is passed so dev mode can return the correct mock user
+      const { token, user: loginUser } = await authService.login({ email, password }, selectedRole);
+      // Token is already persisted inside authService.login()
 
-      // 2️⃣ Verify role matches the selected role
-      const returnedRole = loginUser.role?.toLowerCase();
+      // 2. Validate role matches selection
+      const returnedRole = loginUser?.role?.toLowerCase();
       if (returnedRole !== selectedRole.toLowerCase()) {
+        authService.logout(); // Clean up token
         throw new Error(
           `الدور المحدد (${selectedRole}) لا يتطابق مع دورك الفعلي (${loginUser.role})`
         );
       }
 
-      // 3️⃣ Store token first so the interceptor can use it for /me
-      localStorage.setItem(TOKEN_KEY, token);
+      // 3. GET /Auth/me → full profile
+      const me = await authService.getCurrentUser();
 
-      // 4️⃣ Fetch full user profile from /me
-      const me = await authService.me();
-
-      // 5️⃣ Persist and set state
-      localStorage.setItem(USER_KEY, JSON.stringify(me));
+      // 4. Persist and set
+      authService.persistUser(me);
       setUser(me);
     } catch (err) {
-      // Friendly error messages
       const msg =
-        err.message ||
         err.response?.data?.message ||
+        err.message ||
         'فشل تسجيل الدخول. تحقق من البريد وكلمة المرور.';
       setError(msg);
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
-      throw err; // let the form re-throw to keep button state correct
+      authService.logout();
+      throw err;
     } finally {
       setLoading(false);
     }
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    authService.logout();
     setUser(null);
     setError(null);
   }, []);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrderStore } from '../features/orders/store/useOrderStore';
-import { fetchTablesMock } from '../api/tablesMock';
+import { tablesService } from '../services/tables.service';
 import TableSpot from '../components/tables/TableSpot';
 
 // ─── Zones ─────────────────────────────────────────────────────────────────
@@ -25,15 +25,22 @@ export default function TablesPage() {
   const [allTables, setAllTables]   = useState([]);
   const [activeZone, setActiveZone] = useState('الصالة الرئيسية');
   const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(null);
   const navigate    = useNavigate();
   const { setContext } = useOrderStore();
 
-  // Fetch tables on mount
+  // Fetch tables from API
   useEffect(() => {
     let active = true;
-    fetchTablesMock().then(data => {
-      if (active) { setAllTables(data); setLoading(false); }
-    });
+    setLoading(true);
+    tablesService.getAll()
+      .then(data => {
+        if (active) { setAllTables(data); setLoading(false); }
+      })
+      .catch(err => {
+        console.error('Failed to fetch tables:', err);
+        if (active) { setError('فشل تحميل الطاولات'); setLoading(false); }
+      });
     return () => { active = false; };
   }, []);
 

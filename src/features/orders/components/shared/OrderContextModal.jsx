@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useOrderStore } from '../../store/useOrderStore';
-import { fetchTablesMock } from '../../../../api/tablesMock';
+import { tablesService } from '../../../../services/tables.service';
 import TableSpot from '../../../../components/tables/TableSpot';
 
 const ZONES = ['الصالة الرئيسية', 'قاعة VIP', 'الخارجي'];
@@ -19,10 +19,9 @@ export default function OrderContextModal() {
     if (!view.isContextModalOpen) return;
     if (context.type === 'delivery') return;
     setLoading(true);
-    fetchTablesMock().then(data => {
-      setTables(data);
-      setLoading(false);
-    });
+    tablesService.getAll()
+      .then(data => { setTables(data); setLoading(false); })
+      .catch(err => { console.error('Failed to load tables:', err); setLoading(false); });
   }, [view.isContextModalOpen, context.type]);
 
   if (!view.isContextModalOpen) return null;

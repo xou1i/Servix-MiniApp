@@ -1,63 +1,66 @@
 import { useOrderStore } from '../store/useOrderStore';
+import { ordersService } from '../../../services/orders.service';
 
 /**
- * 🚀 SignalR / WebSocket Integration Layer (Stub)
- * 
- * This service acts as the bridge between the UI State (Zustand) and the Backend Server State.
- * In a production environment, this is where the `HubConnectionBuilder` from `@microsoft/signalr` lives.
+ * OrderSyncService — Bridge between UI state (Zustand) and Backend API.
+ *
+ * Phase 1: Uses ordersService (REST) for order creation.
+ * Phase 2 (future): Add SignalR HubConnection for real-time events
+ *   (NewOrderPlaced, OrderStatusChanged, NewItemsToPrepare, MyOrderStatusUpdate)
  */
 
 class OrderSyncService {
   constructor() {
-    this.connection = null;
+    this.connection = null;  // Future: HubConnectionBuilder instance
     this.isConnected = false;
-    this.mockTimers = [];
   }
 
-  // 1. Initialize Connection
+  // ── Connect ──────────────────────────────────────────────────────────────
   connect() {
-    console.log('[SignalR Stub] Connecting to /hubs/orders...');
+    console.log('[OrderSync] Connected (REST mode). SignalR will be added in Phase 2.');
     this.isConnected = true;
-    
-    // Simulate real-time backend pushing an event to clients
-    console.log('[SignalR Stub] Connected successfully. Listening for events.');
+
+    // TODO Phase 2: Initialize SignalR
+    // this.connection = new HubConnectionBuilder()
+    //   .withUrl('/orderHub', { accessTokenFactory: () => localStorage.getItem('servix_token') })
+    //   .withAutomaticReconnect()
+    //   .build();
+    //
+    // this.connection.on('OrderStatusChanged', (data) => { ... });
+    // this.connection.on('NewOrderPlaced', (data) => { ... });
+    // await this.connection.start();
   }
 
-  // 2. Disconnect/Cleanup
+  // ── Disconnect ───────────────────────────────────────────────────────────
   disconnect() {
     this.isConnected = false;
-    this.mockTimers.forEach(clearTimeout);
-    this.mockTimers = [];
-    console.log('[SignalR Stub] Disconnected.');
+    // TODO Phase 2: this.connection?.stop();
+    console.log('[OrderSync] Disconnected.');
   }
 
-  // 3. Outgoing: Send Order to Backend
+  // ── Send Order via REST API ──────────────────────────────────────────────
   async sendOrder(orderPayload) {
-    if (!this.isConnected) throw new Error("Disconnected from server");
+    const { context, cart, orderNote } = orderPayload;
 
-    console.log('[SignalR Stub] Transmitting Order Payload:', orderPayload);
+    // Build the API request body matching POST /api/v1/Orders
+    const apiPayload = {
+      tableId: context.type === 'dine-in' ? context.tableId : undefined,
+      orderType: context.type,  // 'dine-in' | 'takeaway' | 'delivery'
+      items: cart.map(item => ({
+        menuItemId: item.productId,
+        quantity: item.qty,
+      })),
+    };
 
-    // Simulate network delay for submission
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Once sent successfully, we can simulate the "Kitchen" picking it up 5 seconds later
-    const timerId = setTimeout(() => {
-      console.log('[SignalR Stub] 🔔 Incoming Event: Kitchen marked order as PREPARING (Locked)');
-      // Directly mutate the Zustand store from the Sync Bridge (Single Source of Truth)
-      useOrderStore.getState().syncOrderLifecycle('locked');
-    }, 5000);
+    console.log('[OrderSync] Submitting order:', apiPayload);
 
-    this.mockTimers.push(timerId);
+    // Call the real API
+    const result = await ordersService.create(apiPayload);
 
-    return { success: true, orderId: `ord_${Math.floor(Math.random() * 10000)}` };
-  }
-
-  // 4. Incoming (Stub): Receive individual item updates from Kitchen
-  simulateKitchenItemReady(cartItemId) {
-    // In real prod, this is triggered via `this.connection.on("ReceiveItemStatusUpdate", (data) => ...)`
-    useOrderStore.getState().syncItemKitchenStatus(cartItemId, 'ready');
+    console.log('[OrderSync] Order created successfully:', result);
+    return result; // { id, status, totalAmount, createdAt }
   }
 }
 
-// Export a singleton instance
+// Export singleton
 export const orderSyncService = new OrderSyncService();

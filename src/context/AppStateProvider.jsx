@@ -1,19 +1,36 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { mockOrders } from '../data/mockOrders';
 import { NOTIFICATION_TYPES, seedNotifications } from '../data/mockNotifications';
 import { AppStateContext } from './appStateContext';
 import { STATUS_META, ORDER_STATUS } from '../utils/status';
 import { generateId } from '../utils/id';
 import { routeItems } from '../data/menu';
+import { ordersService } from '../services/orders.service';
 
 export function AppStateProvider({ children }) {
+  // Start with mock data as fallback; API data overwrites on success
   const [orders, setOrders] = useState(mockOrders);
   const [notifications, setNotifications] = useState(seedNotifications);
   const [language, setLanguage] = useState('ar'); // 'ar' | 'en'
 
+  // ── Fetch orders from API on mount ─────────────────────────────────────
+  useEffect(() => {
+    ordersService.getAll()
+      .then(apiOrders => {
+        if (apiOrders && apiOrders.length > 0) {
+          setOrders(apiOrders);
+        }
+        // If API returns empty or fails, keep mock data as fallback
+      })
+      .catch(err => {
+        console.warn('[AppState] API not available, using mock data:', err.message);
+      });
+  }, []);
+
   // ── Order actions ─────────────────────────────────────────────────────────
   const updateOrderStatus = useCallback((orderId, nextStatus) => {
     let prevStatus;
+    // Optimistic local update
     setOrders((prev) =>
       prev.map((o) => {
         if (o.id !== orderId) return o;
@@ -22,6 +39,12 @@ export function AppStateProvider({ children }) {
         return { ...o, status: nextStatus };
       }),
     );
+
+    // Sync with API (fire-and-forget with error logging)
+    ordersService.updateStatus(orderId, nextStatus).catch(err => {
+      console.error('[AppState] Failed to update order status via API:', err.message);
+      // Optionally rollback: setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: prevStatus } : o));
+    });
 
     setNotifications((prev) => {
       if (prevStatus === undefined || prevStatus === nextStatus) return prev;
@@ -82,15 +105,14 @@ export function AppStateProvider({ children }) {
       const flatItems = [];
 
       cartPayload.forEach(item => {
-        // Construct visual title line with qty 
         const qtyString = item.qty > 1 ? `${item.qty}x ` : '';
         const title = `${qtyString}${item.name}`;
         
         flatItems.push(title);
 
         // Departmental Splitting Logic
-        // In real backend integration, target_department will be provided 
-        // Currently mapping our mock UI categories:
+        // In real backend, target_department is used automatically
+        // This local split is for UI display only
         if (item.product?.category === 'cat_drinks' || item.product?.category === 'drink') {
            baristaItems.push(title);
         } else {
@@ -101,6 +123,7 @@ export function AppStateProvider({ children }) {
       const id = `ORD-${Math.floor(2049 + Math.random() * 900)}`;
       const tableDisplay = type === 'takeaway' ? 'سفري' : type === 'delivery' ? 'توصيل' : tableId || 'صالة';
 
+      // Optimistic local update
       const newOrder = {
         id,
         table: tableDisplay,
@@ -116,6 +139,24 @@ export function AppStateProvider({ children }) {
         notes: [orderNote, ...cartPayload.map(c => c.notes).filter(Boolean)].filter(Boolean).join(' | ') || '',
       };
       setOrders((prev) => [newOrder, ...prev]);
+
+      // Sync with API (backend auto-splits by target_department)
+      ordersService.create({
+        tableId: type === 'dine-in' ? tableId : undefined,
+        orderType: type,
+        items: cartPayload.map(item => ({
+          menuItemId: item.productId,
+          quantity: item.qty,
+        })),
+      }).then(apiOrder => {
+        // Update local order with real API ID if available
+        if (apiOrder?.id) {
+          setOrders(prev => prev.map(o => o.id === id ? { ...o, id: apiOrder.id } : o));
+        }
+      }).catch(err => {
+        console.error('[AppState] Failed to create order via API:', err.message);
+      });
+
       setNotifications((prev) => [
         {
           id: generateId('ntf'),
