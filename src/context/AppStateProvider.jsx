@@ -6,12 +6,18 @@ import { STATUS_META, ORDER_STATUS } from '../utils/status';
 import { generateId } from '../utils/id';
 import { routeItems } from '../data/menu';
 import { ordersService } from '../services/orders.service';
+import { useSignalR } from '../hooks/useSignalR';
+import { authService } from '../services/auth.service';
 
 export function AppStateProvider({ children }) {
   // Start with mock data as fallback; API data overwrites on success
   const [orders, setOrders] = useState(mockOrders);
   const [notifications, setNotifications] = useState(seedNotifications);
   const [language, setLanguage] = useState('ar'); // 'ar' | 'en'
+
+  // Get current role for SignalR subscriptions
+  const storedUser = authService.getStoredUser();
+  const currentRole = storedUser?.role?.toLowerCase() ?? '';
 
   // ── Fetch orders from API on mount ─────────────────────────────────────
   useEffect(() => {
@@ -26,6 +32,84 @@ export function AppStateProvider({ children }) {
         console.warn('[AppState] API not available, using mock data:', err.message);
       });
   }, []);
+
+  // ── Notification helper ────────────────────────────────────────────────
+  const pushNotification = useCallback((partial) => {
+    setNotifications((prev) => [
+      { id: generateId('ntf'), read: false, createdAt: Date.now(), ...partial },
+      ...prev,
+    ]);
+  }, []);
+
+  // ── SignalR Real-Time Integration ──────────────────────────────────────
+  useSignalR({
+    role: currentRole,
+    onNewOrder: useCallback((data) => {
+      // data = { orderId, orderDetails, ... } — shape depends on backend
+      if (data) {
+        // Refresh orders from API to get full data
+        ordersService.getAll()
+          .then(apiOrders => {
+            if (apiOrders && apiOrders.length > 0) {
+              setOrders(apiOrders);
+            }
+          })
+          .catch(() => {});
+
+        pushNotification({
+          type: NOTIFICATION_TYPES.newOrder,
+          title: language === 'en' ? 'New Order Received' : 'طلب جديد وصل',
+          body: language === 'en'
+            ? `New order ${data.orderId || ''} has been placed.`
+            : `تم إنشاء طلب جديد ${data.orderId || ''}`,
+          orderId: data.orderId,
+        });
+      }
+    }, [language, pushNotification]),
+
+    onStatusChanged: useCallback((data) => {
+      // data = { orderId, status }
+      if (data?.orderId && data?.status) {
+        setOrders(prev => prev.map(o =>
+          o.id === data.orderId ? { ...o, status: data.status } : o
+        ));
+
+        const meta = STATUS_META[data.status];
+        const label = meta?.label ?? data.status;
+        pushNotification({
+          type: NOTIFICATION_TYPES.statusUpdated,
+          title: language === 'en' ? 'Order Status Updated' : 'تم تحديث حالة الطلب',
+          body: language === 'en'
+            ? `Order ${data.orderId} is now: ${label}`
+            : `الطلب ${data.orderId} أصبح: ${label}`,
+          orderId: data.orderId,
+        });
+      }
+    }, [language, pushNotification]),
+
+    onNewItems: useCallback((data) => {
+      // data = { orderId, items, department }
+      if (data) {
+        pushNotification({
+          type: NOTIFICATION_TYPES.newOrder,
+          title: language === 'en' ? 'New Items to Prepare' : 'أصناف جديدة للتحضير',
+          body: language === 'en'
+            ? `New items for order ${data.orderId || ''}`
+            : `أصناف جديدة للطلب ${data.orderId || ''}`,
+          orderId: data.orderId,
+        });
+      }
+    }, [language, pushNotification]),
+
+    onMyOrderUpdate: useCallback((data) => {
+      // data = { orderId, status }
+      if (data?.orderId && data?.status) {
+        setOrders(prev => prev.map(o =>
+          o.id === data.orderId ? { ...o, status: data.status } : o
+        ));
+      }
+    }, []),
+  });
 
   // ── Order actions ─────────────────────────────────────────────────────────
   const updateOrderStatus = useCallback((orderId, nextStatus) => {
@@ -186,13 +270,6 @@ export function AppStateProvider({ children }) {
     () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true }))),
     [],
   );
-
-  const pushNotification = useCallback((partial) => {
-    setNotifications((prev) => [
-      { id: generateId('ntf'), read: false, createdAt: Date.now(), ...partial },
-      ...prev,
-    ]);
-  }, []);
 
   // ── Language ──────────────────────────────────────────────────────────────
   const switchLanguage = useCallback((lang) => {

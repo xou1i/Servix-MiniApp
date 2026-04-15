@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { authService } from '../services/auth.service';
+import { classifyError, ERROR_TYPES } from '../services/api';
 
 /**
  * useAuth — Authentication hook.
@@ -11,11 +12,13 @@ import { authService } from '../services/auth.service';
  *   logout()
  *   loading     → true during API call
  *   error       → string | null
+ *   errorType   → ERROR_TYPES value | null (for UI conditional rendering)
  */
 export function useAuth() {
-  const [user,    setUser]    = useState(() => authService.getStoredUser());
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
+  const [user,      setUser]      = useState(() => authService.getStoredUser());
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState(null);
+  const [errorType, setErrorType] = useState(null);
 
   // Lowercase role key — compatible with existing app (ROLES object keys)
   const role = user?.role?.toLowerCase() ?? '';
@@ -23,9 +26,10 @@ export function useAuth() {
   const login = useCallback(async (email, password, selectedRole) => {
     setLoading(true);
     setError(null);
+    setErrorType(null);
 
     try {
-      // 1. POST /Auth/login → get token + user
+      // 1. POST /api/v1/Auth/login → get token + user
       //    selectedRole is passed so dev mode can return the correct mock user
       const { token, user: loginUser } = await authService.login({ email, password }, selectedRole);
       // Token is already persisted inside authService.login()
@@ -34,23 +38,52 @@ export function useAuth() {
       const returnedRole = loginUser?.role?.toLowerCase();
       if (returnedRole !== selectedRole.toLowerCase()) {
         authService.logout(); // Clean up token
-        throw new Error(
-          `الدور المحدد (${selectedRole}) لا يتطابق مع دورك الفعلي (${loginUser.role})`
-        );
+        const mismatchMsg = `الدور المحدد (${selectedRole}) لا يتطابق مع دورك الفعلي (${loginUser.role})`;
+        setError(mismatchMsg);
+        setErrorType('ROLE_MISMATCH');
+        throw new Error(mismatchMsg);
       }
 
-      // 3. GET /Auth/me → full profile
+      // 3. GET /api/v1/Auth/me → full profile (with Authorization: Bearer token)
       const me = await authService.getCurrentUser();
 
       // 4. Persist and set
       authService.persistUser(me);
       setUser(me);
     } catch (err) {
-      const msg =
-        err.response?.data?.message ||
-        err.message ||
-        'فشل تسجيل الدخول. تحقق من البريد وكلمة المرور.';
-      setError(msg);
+      // If we already set a specific error (like role mismatch), don't overwrite
+      if (!error) {
+        const classified = classifyError(err);
+
+        // Pick language-appropriate message
+        let msg;
+        switch (classified.type) {
+          case ERROR_TYPES.AUTH_EXPIRED:
+            msg = 'بيانات الدخول غير صحيحة. تحقق من البريد وكلمة المرور.';
+            break;
+          case ERROR_TYPES.GATEWAY_ERROR:
+            msg = 'السيرفر غير متاح حالياً. حاول مرة أخرى بعد قليل.';
+            break;
+          case ERROR_TYPES.NETWORK_ERROR:
+            msg = 'لا يوجد اتصال بالسيرفر. تحقق من الشبكة.';
+            break;
+          case ERROR_TYPES.TIMEOUT:
+            msg = 'انتهت مهلة الاتصال. حاول مرة أخرى.';
+            break;
+          case ERROR_TYPES.VALIDATION:
+            msg = classified.messageAr || 'تحقق من المدخلات.';
+            break;
+          default:
+            msg =
+              err.response?.data?.message ||
+              err.message ||
+              'فشل تسجيل الدخول. تحقق من البريد وكلمة المرور.';
+        }
+
+        setError(msg);
+        setErrorType(classified.type);
+      }
+
       authService.logout();
       throw err;
     } finally {
@@ -62,7 +95,8 @@ export function useAuth() {
     authService.logout();
     setUser(null);
     setError(null);
+    setErrorType(null);
   }, []);
 
-  return { user, role, login, logout, loading, error, setError };
+  return { user, role, login, logout, loading, error, errorType, setError };
 }

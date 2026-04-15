@@ -1,4 +1,4 @@
-import api from './api';
+import api, { unwrap } from './api';
 
 export const tablesService = {
   /**
@@ -7,8 +7,7 @@ export const tablesService = {
    */
   getAll: async () => {
     const { data } = await api.get('/Tables');
-    // API wraps in { success: true, data: [...] }
-    return data.data ?? data;
+    return unwrap(data);
   },
 
   /**
@@ -17,15 +16,22 @@ export const tablesService = {
    */
   getAvailable: async () => {
     const { data } = await api.get('/Tables/available');
-    return data.data ?? data;
+    return unwrap(data);
   },
 
   /**
    * GET /api/public/tables/by-code/{code}
    * Get table via QR code scan
+   *
+   * NOTE: This endpoint is under /api/public (no /v1), so we use
+   * an absolute path relative to the origin, bypassing the baseURL.
    */
   getByQrCode: async (code) => {
-    const { data } = await api.get(`/public/tables/by-code/${code}`);
-    return data.data ?? data;
+    // Use full path to avoid /api/v1 baseURL prefix
+    // The URL safety interceptor skips paths containing /api/public
+    const { data } = await api.get(`/api/public/tables/by-code/${code}`, {
+      baseURL: '', // Override baseURL to use absolute path
+    });
+    return unwrap(data);
   },
 };

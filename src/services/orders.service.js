@@ -1,4 +1,4 @@
-import api from './api';
+import api, { unwrap } from './api';
 
 export const ordersService = {
   /**
@@ -12,7 +12,8 @@ export const ordersService = {
     if (filters.departmentId) params.departmentId = filters.departmentId;
 
     const { data } = await api.get('/Orders', { params });
-    return Array.isArray(data) ? data : (data.data ?? []);
+    const result = unwrap(data);
+    return Array.isArray(result) ? result : [];
   },
 
   /**
@@ -21,7 +22,7 @@ export const ordersService = {
    */
   getById: async (id) => {
     const { data } = await api.get(`/Orders/${id}`);
-    return data.data ?? data;
+    return unwrap(data);
   },
 
   /**
@@ -32,7 +33,7 @@ export const ordersService = {
    */
   create: async (payload) => {
     const { data } = await api.post('/Orders', payload);
-    return data.data ?? data;
+    return unwrap(data);
   },
 
   /**
@@ -42,6 +43,6 @@ export const ordersService = {
    */
   updateStatus: async (id, status) => {
     const { data } = await api.patch(`/Orders/${id}/status`, { status });
-    return data.data ?? data;
+    return unwrap(data);
   },
 };

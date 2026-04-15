@@ -1,4 +1,4 @@
-import api from './api';
+import api, { unwrap } from './api';
 
 export const menuService = {
   /**
@@ -8,8 +8,8 @@ export const menuService = {
    */
   getAll: async () => {
     const { data } = await api.get('/Menu');
-    // Normalize: API may return array directly or inside { data }
-    return Array.isArray(data) ? data : (data.data ?? []);
+    const result = unwrap(data);
+    return Array.isArray(result) ? result : [];
   },
 
   /**
@@ -18,6 +18,7 @@ export const menuService = {
    */
   getByCategory: async (categoryId) => {
     const { data } = await api.get(`/Menu/category/${categoryId}`);
-    return Array.isArray(data) ? data : (data.data ?? []);
+    const result = unwrap(data);
+    return Array.isArray(result) ? result : [];
   },
 };

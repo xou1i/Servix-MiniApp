@@ -1,4 +1,4 @@
-import api from './api';
+import api, { unwrap } from './api';
 
 export const paymentsService = {
   /**
@@ -8,7 +8,7 @@ export const paymentsService = {
    */
   create: async (payload) => {
     const { data } = await api.post('/Payments', payload);
-    return data.data ?? data;
+    return unwrap(data);
   },
 
   /**
@@ -17,7 +17,7 @@ export const paymentsService = {
    */
   updateStatus: async (id, status) => {
     const { data } = await api.patch(`/Payments/${id}/status`, { status });
-    return data.data ?? data;
+    return unwrap(data);
   },
 
   /**
@@ -26,6 +26,6 @@ export const paymentsService = {
    */
   refund: async (id) => {
     const { data } = await api.post(`/Payments/${id}/refund`);
-    return data.data ?? data;
+    return unwrap(data);
   },
 };

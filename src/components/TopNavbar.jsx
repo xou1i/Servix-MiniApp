@@ -16,13 +16,14 @@ import iconSrc from '../assets/Servix - Icon.png';
 import logoSrc from '../assets/Servix - Logo.png';
 
 export default function TopNavbar({ roleKey, logout }) {
+  // ── Build role-prefixed nav items ──────────────────────────────────────
   const NAV_ITEMS = [
-    { to: '/orders',  Icon: ShoppingBag, labelAr: 'الطلبات',  labelEn: 'Orders' },
-    { to: '/history', Icon: Clock,        labelAr: 'السجل',    labelEn: 'History' },
+    { to: `/${roleKey}/orders`,  Icon: ShoppingBag, labelAr: 'الطلبات',  labelEn: 'Orders' },
+    { to: `/${roleKey}/history`, Icon: Clock,        labelAr: 'السجل',    labelEn: 'History' },
   ];
 
   if (roleKey === 'cashier') {
-    NAV_ITEMS.splice(1, 0, { to: '/bills', Icon: Receipt, labelAr: 'الفواتير', labelEn: 'Bills' });
+    NAV_ITEMS.splice(1, 0, { to: `/${roleKey}/bills`, Icon: Receipt, labelAr: 'الفواتير', labelEn: 'Bills' });
   }
   const { notifications, language } = useAppState();
   const isAr = language !== 'en';
@@ -41,7 +42,7 @@ export default function TopNavbar({ roleKey, logout }) {
       <div className="topnav-wrapper">
         <nav className="topnav glass-topnav">
           {/* Logo */}
-          <NavLink to="/orders" className="shrink-0 me-1">
+          <NavLink to={`/${roleKey}/orders`} className="shrink-0 me-1">
             <img src={logoSrc} alt="Servix" className="h-7 w-auto hidden sm:block" />
             <img src={iconSrc} alt="Servix" className="h-8 w-auto sm:hidden" />
           </NavLink>

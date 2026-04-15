@@ -7,4 +7,23 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    // ── Dev Proxy — bypasses CORS by routing API requests through Vite ──
+    // The browser sees requests to localhost:5173/api/... → no CORS issues.
+    // Vite forwards them to the actual backend (localtunnel or direct).
+    proxy: {
+      '/api': {
+        target: process.env.VITE_BACKEND_ORIGIN || 'https://purple-bobcats-tie.loca.lt',
+        changeOrigin: true,
+        secure: false,
+      },
+      // SignalR WebSocket hub
+      '/orderHub': {
+        target: process.env.VITE_BACKEND_ORIGIN || 'https://purple-bobcats-tie.loca.lt',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+      },
+    },
+  },
 })

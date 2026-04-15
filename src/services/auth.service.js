@@ -1,4 +1,4 @@
-import api from './api';
+import api, { unwrap } from './api';
 
 const TOKEN_KEY = 'servix_token';
 const USER_KEY  = 'servix_user';
@@ -6,6 +6,9 @@ const USER_KEY  = 'servix_user';
 // ── Dev Mode Flag ──────────────────────────────────────────────────────────
 // Reads from .env → set VITE_USE_MOCK_AUTH=true to bypass real API
 const USE_MOCK_AUTH = import.meta.env.VITE_USE_MOCK_AUTH === 'true';
+
+// ── Dev test token (optional — set in .env for Swagger testing) ────────────
+const DEV_TEST_TOKEN = import.meta.env.VITE_DEV_TEST_TOKEN || '';
 
 // ── Mock responses per role (used in dev mode only) ────────────────────────
 const MOCK_USERS = {
@@ -27,6 +30,10 @@ export const authService = {
    * POST /api/v1/Auth/login
    * In dev mode: returns mock data instantly, matching the selected role.
    * In prod mode: calls real API.
+   *
+   * Response handling:
+   *   - Envelope format: { success, data: { token, user } } → unwrap() extracts inner data
+   *   - Direct format:   { token, user } → unwrap() returns as-is
    */
   login: async ({ email, password }, selectedRole) => {
     if (USE_MOCK_AUTH) {
@@ -40,14 +47,22 @@ export const authService = {
 
     // ── Real API ──
     const { data } = await api.post('/Auth/login', { email, password });
-    if (data.token) {
-      localStorage.setItem(TOKEN_KEY, data.token);
+    const result = unwrap(data); // handles { success, data: { token, user } } OR { token, user }
+
+    if (result.token) {
+      localStorage.setItem(TOKEN_KEY, result.token);
+    } else {
+      console.warn('[Auth] ⚠️ Login response missing token:', result);
     }
-    return data; // { token, user }
+
+    return result; // { token, user }
   },
 
   /**
    * GET /api/v1/Auth/me
+   * Requires: Authorization: Bearer {token} (auto-attached by interceptor)
+   * Returns: { id, firstName, lastName, role } (after unwrapping envelope)
+   *
    * In dev mode: returns stored mock user.
    */
   getCurrentUser: async () => {
@@ -57,7 +72,7 @@ export const authService = {
     }
 
     const { data } = await api.get('/Auth/me');
-    return data;
+    return unwrap(data); // extracts from { success, data: { id, ... } }
   },
 
   /**
@@ -87,6 +102,13 @@ export const authService = {
   },
 
   /**
+   * Get the stored token (for SignalR or external use)
+   */
+  getToken: () => {
+    return localStorage.getItem(TOKEN_KEY);
+  },
+
+  /**
    * Clear all auth state
    */
   logout: () => {
@@ -98,4 +120,9 @@ export const authService = {
    * Whether dev mock auth is active (useful for UI indicators)
    */
   isDevMode: USE_MOCK_AUTH,
+
+  /**
+   * Whether a dev test token is configured (for Swagger testing)
+   */
+  hasDevTestToken: !!DEV_TEST_TOKEN,
 };
