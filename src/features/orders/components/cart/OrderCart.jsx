@@ -1,4 +1,4 @@
-import { Plus, Minus, Trash2, SplitSquareHorizontal, Store, Bike, Utensils, Printer, Undo2 } from 'lucide-react';
+import { Plus, Minus, Trash2, SplitSquareHorizontal, Store, Bike, Utensils, Printer, Undo2, MapPin, Map, ShoppingBasket, Phone, User, FileText, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useOrderStore } from '../../store/useOrderStore';
@@ -9,7 +9,7 @@ import PrintableReceipt from '../../components/shared/PrintableReceipt';
 export default function OrderCart({ roleKey }) {
    const { 
      cart, lifecycle, undoLastAction, undoStack, updateQuantity, removeItem, splitItem, 
-     context, setContext, submitOrder, orderNote, setOrderNote 
+     context, setContext, submitOrder, orderNote, setOrderNote, openContextModal
    } = useOrderStore();
    const { addOrder } = useAppState();
    const navigate = useNavigate();
@@ -82,17 +82,13 @@ export default function OrderCart({ roleKey }) {
             {/* Table Selector - dine-in only */}
             {(context.type === 'dine-in' || (roleKey === 'waiter' && !context.type)) && (
                <div className="flex items-center justify-between py-1">
-                   <span className="text-xs font-bold text-[var(--color-primary)] opacity-80 px-2 flex items-center gap-1">📍 اختر الطاولة</span>
-                   <select 
-                     className="bg-white text-[var(--text-primary)] text-xs font-bold border border-[var(--surface-high)] rounded-lg px-2 py-1.5 outline-none cursor-pointer hover:border-[var(--color-primary)] focus:border-[var(--color-primary)] transition-all shadow-sm max-w-[130px]"
-                     value={context.tableId || ''}
-                     onChange={(e) => setContext({ type: 'dine-in', tableId: e.target.value, delivery: null })}
+                   <span className="text-xs font-bold text-[var(--color-primary)] opacity-80 px-2 flex items-center gap-1"><MapPin size={14} /> اختر الطاولة</span>
+                   <button 
+                     onClick={() => openContextModal()}
+                     className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold border border-emerald-200 rounded-lg px-3 py-1.5 outline-none cursor-pointer transition-all shadow-sm flex items-center gap-1"
                    >
-                     <option value="" disabled>-- طاولة --</option>
-                     {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                       <option key={n} value={`T${n}`}>الطاولة {n}</option>
-                     ))}
-                   </select>
+                     {context.tableId ? `T${context.tableId.replace('T','')}` : <><Map size={14} /> الخريطة</>}
+                   </button>
                </div>
             )}
 
@@ -101,25 +97,28 @@ export default function OrderCart({ roleKey }) {
                <div className="space-y-2 pt-1 border-t border-[var(--surface-high)] animate-fade-in">
                  <input
                    type="tel"
-                   placeholder="📞 رقم الجوال"
+                   placeholder="رقم الجوال"
                    className="w-full bg-white border border-[var(--surface-high)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--color-primary)] transition-all text-right"
                    value={context.delivery?.phone || ''}
                    onChange={(e) => setContext({ type: 'delivery', tableId: null, delivery: { ...context.delivery, phone: e.target.value } })}
                  />
                  <input
                    type="text"
-                   placeholder="👤 اسم العميل"
+                   placeholder="اسم العميل"
                    className="w-full bg-white border border-[var(--surface-high)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--color-primary)] transition-all text-right"
                    value={context.delivery?.name || ''}
                    onChange={(e) => setContext({ type: 'delivery', tableId: null, delivery: { ...context.delivery, name: e.target.value } })}
                  />
                  <input
                    type="text"
-                   placeholder="📍 العنوان"
+                   placeholder="العنوان"
                    className="w-full bg-white border border-[var(--surface-high)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--color-primary)] transition-all text-right"
                    value={context.delivery?.address || ''}
                    onChange={(e) => setContext({ type: 'delivery', tableId: null, delivery: { ...context.delivery, address: e.target.value } })}
                  />
+                 <div className="flex gap-2 text-[10px] text-[var(--text-muted)] font-bold px-1">
+                    <Phone size={12} /> <User size={12} /> <MapPin size={12} />
+                 </div>
                </div>
             )}
          </div>
@@ -129,7 +128,9 @@ export default function OrderCart({ roleKey }) {
       <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar relative bg-[#FCFDFE]">
          {cart.length === 0 ? (
            <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--text-muted)] opacity-50">
-             <div className="w-24 h-24 mb-4 rounded-full border-2 border-dashed border-[var(--text-muted)] flex items-center justify-center text-4xl bg-white shadow-sm">🛒</div>
+             <div className="w-24 h-24 mb-4 rounded-full border-2 border-dashed border-[var(--text-muted)] flex items-center justify-center bg-white shadow-sm">
+               <ShoppingBasket size={48} />
+             </div>
              <p className="font-bold text-[15px]">الطلب فارغ حالياً</p>
              <p className="text-xs mt-1">اضغط على الأصناف لإضافتها</p>
            </div>
@@ -156,7 +157,7 @@ export default function OrderCart({ roleKey }) {
                                  {m.value} {m.priceAdjust > 0 ? `(+${formatIQD(m.priceAdjust)})` : ''}
                                </span>
                              ))}
-                             {item.notes && <p className="text-[var(--text-secondary)] mt-1">📝 {item.notes}</p>}
+                             {item.notes && <p className="text-[var(--text-secondary)] mt-1 flex items-center gap-1"><FileText size={10}/> {item.notes}</p>}
                            </div>
                          )}
 
@@ -256,7 +257,9 @@ export default function OrderCart({ roleKey }) {
              }`}
            >
               {lifecycle === 'sending' ? 'جاري الإرسال...' : 
-               lifecycle === 'sent' ? 'تم الإرسال بنجاح ✓' :
+               lifecycle === 'sent' ? (
+                 <span className="flex items-center gap-2">تم الإرسال بنجاح <CheckCircle2 size={18} /></span>
+               ) :
                !effectiveContext.type ? 'حدد نوع الطلب أولاً' :
                'تأكيد وإرسال للمطبخ'}
            </button>

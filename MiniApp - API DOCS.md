@@ -1,294 +1,248 @@
-# Mini App API Documentation
+# 🧾 Restaurant Mini App – API Documentation (v2)
 
-> يغطي كل شيء يحتاجه الميني اب لأربعة رولز: Cashier, Waiter, Chef, Barista > تحديثات **Real-time** عبر SignalR أو WebSockets
-
----
-
-## 1. Auth – تسجيل الدخول والتوثيق
-
-### Login
-
-- **Endpoint:** `**POST** /api/v1/Auth/login`
-- **الوصف:** لتسجيل دخول الموظف باستخدام حسابه الذي أنشأه Admin. يعطي **JWT** token لاستخدامه في الـ headers.
-- **Request Body:**
-
-```json
-{
-    *email*: *[user@example.com](mailto:user@example.com)*,
-    *password*: *string*
-}
-```
-
-- **Response:**
-
-```json
-{
-    *token*: *JWT_TOKEN*,
-    *user*: {
-    *id*: *uuid*,
-    *firstName*: *string*,
-    *lastName*: *string*,
-    *role*: *Cashier | Waiter | Chef | Barista*,
-    *departmentId*: *uuid*
-    }
-}
-```
-
-- **ملاحظات:**
-
-  * يجب تخزين الـ token لاستخدامه في كل request محمي.
-
-### Get Current User
-
-- **Endpoint:** `**GET** /api/v1/Auth/me`
-- **الوصف:** للحصول على معلومات المستخدم الحالي.
-- **Headers:**
-
-``` Authorization: Bearer {JWT_TOKEN} ```
-
-- **Response:**
-
-```json
-{
-    *id*: *uuid*,
-    *firstName*: *string*,
-    *lastName*: *string*,
-    *role*: *Cashier | Waiter | Chef | Barista*,
-    *departmentId*: *uuid*
-}
-```
+> Real-time, role-based Restaurant POS system  
+> Uses Axios + JWT Authentication + SignalR
 
 ---
 
-## 2. Menu – عرض المنيو
+# 🔐 1. Authentication
 
-### Get All Menu Items
+## POST /api/v1/Auth/login
 
-- **Endpoint:** `**GET** /api/v1/Menu`
-- **الوصف:** جلب جميع الأصناف الموجودة في المنيو مع التفاصيل والوصفات.
-- **Response:**
+Login staff user (Cashier, Waiter, Chef, Barista)
 
+### Request
 ```json
+{
+  "email": "user@example.com",
+  "password": "string"
+}
+Response
+{
+  "token": "JWT_TOKEN",
+  "user": {
+    "id": "uuid",
+    "firstName": "string",
+    "lastName": "string",
+    "role": "Cashier | Waiter | Chef | Barista"
+  }
+}
+Notes
+Store token in localStorage
+Use in all protected requests
+
+🇸🇦 شرح: تسجيل دخول الموظف ويرجع توكن + معلوماته
+
+GET /api/v1/Auth/me
+
+Get current logged-in user
+
+Headers
+Authorization: Bearer {token}
+Response
+{
+  "id": "uuid",
+  "firstName": "string",
+  "lastName": "string",
+  "role": "Cashier | Waiter | Chef | Barista"
+}
+
+🇸🇦: تجيب معلومات المستخدم الحالي
+
+🍽️ 2. Menu
+GET /api/v1/Menu
+
+Get all menu items
+
+Response
 [
-    {
-    *id*: *uuid*,
-    *name*: *string*,
-    *description*: *string*,
-    *price*: 0.0,
-    *imageUrl*: *string*,
-    *categoryId*: *uuid*,
-    *isAvailable*: true,
-    *calories*: 0,
-    *preparationTime*: 0,
-    *ingredients*: [*string*]
-    }
+  {
+    "id": "uuid",
+    "name": "Burger",
+    "price": 10.5,
+    "target_department": "kitchen | barista",
+    "isAvailable": true
+  }
 ]
-```
+Notes
+target_department مهم لتقسيم الطلب
 
-- **ملاحظات:**
+🇸🇦: عرض المنيو + تحديد القسم (مطبخ/باريستا)
 
-    * يستخدم عند فتح قائمة الطلبات في الميني اب.
-    * المكونات تساعد على التحقق من المخزون قبل الطلب.
+GET /api/v1/Menu/category/{categoryId}
 
-### Get Menu by Category
+Filter menu by category
 
-- **Endpoint:** `**GET** /api/v1/Menu/category/{categoryId}`
-- **الوصف:** جلب أصناف المنيو المرتبطة بفئة محددة.
-- **Parameters:**
+🇸🇦: فلترة حسب التصنيف
 
-  * `categoryId` (path): ID الفئة المطلوبة
-- **Response:** نفس صيغة Get All Menu Items لكن مصفاة حسب الفئة.
+🪑 3. Tables
+GET /api/v1/Tables
 
----
+Get all tables (used for Table Map)
 
-## 3. Tables – الطاولات
-
-### Get All Tables
-
-- **Endpoint:** `**GET** /api/v1/Tables`
-- **الوصف:** عرض كل الطاولات الموجودة بالمطعم مع حالتها ومعلوماتها.
-- **Response:**
-
-```json
-[
-    {
-    *id*: *uuid*,
-    *tableNumber*: 1,
-    *capacity*: 4,
-    *location*: *string*,
-    *status*: *Available | Occupied | Reserved | Maintenance*,
-    *notes*: *string*
-    }
-]
-```
-
-### Get Available Tables
-
-- **Endpoint:** `**GET** /api/v1/Tables/available`
-- **الوصف:** عرض الطاولات المتاحة فقط لاستخدامها عند إنشاء الطلبات DineIn.
-- **Response:** نفس صيغة Get All Tables لكن فقط للطاولات المتاحة.
-
----
-
-## 4. Orders – إدارة الطلبات
-
-### Create Order
-
-- **Endpoint:** `**POST** /api/v1/Orders`
-- **الوصف:** إنشاء طلب جديد من قبل Cashier أو Waiter.
-- **Request Body:**
-
-```json
+Response
 {
-    *userId*: *uuid*,
-    *tableId*: *uuid*,
-    *orderType*: *DineIn | TakeAway | Delivery*,
-    *items*: [
+  "success": true,
+  "data": [
     {
-    *menuItemId*: *uuid*,
-    *quantity*: 1,
-    *specialInstructions*: *string*
+      "id": "uuid",
+      "tableNumber": "T1",
+      "capacity": 4,
+      "zone": "A",
+      "floorNumber": 1,
+      "status": "Available | Occupied | Reserved | Maintenance",
+      "isOrderingEnabled": true,
+      "activeOrdersCount": 0
     }
-    ],
-    *specialNotes*: *string*
+  ]
 }
-```
+Notes
+Used for visual table map
+status يتحكم باللون
 
-- **Response:**
+🇸🇦: بيانات الطاولات لخريطة الصالة
 
-```json
+GET /api/public/tables/by-code/{code}
+
+Get table via QR
+
+🇸🇦: جلب طاولة عن طريق QR
+
+🧾 4. Orders (Core System)
+GET /api/v1/Orders
+
+Get orders (filtered by role/department)
+
+Query (optional)
+status
+departmentId
+
+🇸🇦: عرض الطلبات حسب الحالة أو القسم
+
+GET /api/v1/Orders/{id}
+
+Get full order details
+
+🇸🇦: تفاصيل طلب واحد
+
+POST /api/v1/Orders
+
+Create new order (Waiter / Cashier)
+
+Request
 {
-    *id*: *uuid*,
-    *status*: *Pending*,
-    *totalAmount*: 0.0,
-    *createdAt*: *datetime*
-}
-```
-
-- **ملاحظات:**
-
-    * يظهر الطلب **Real-time** لجميع الموظفين وDashboard.
-    * يتحقق النظام من توفر المكونات ويرسل **تنبيه Low Stock** إذا كانت ناقصة.
-
-### Get Orders
-
-- **Endpoint:** `**GET** /api/v1/Orders`
-- **الوصف:** عرض الطلبات حسب القسم أو الحالة.
-- **Query Params (اختياري):**
-
-    * `departmentId` → لتصفية الطلبات للقسم
-    * `status` → Pending, Preparing, Ready, Delivering, Completed
-- **Response:** قائمة الطلبات مع تفاصيل الأصناف والملاحظات.
-
-### Get Order Details
-
-- **Endpoint:** `**GET** /api/v1/Orders/{id}`
-- **الوصف:** عرض تفاصيل طلب معين بالكامل.
-- **Parameters:**
-
-  * `id` (path): ID الطلب
-- **Response:** تفاصيل الطلب كاملة بما فيها الأصناف والملاحظات والحالة.
-
-### Update Order Status
-
-- **Endpoint:** `**PATCH** /api/v1/Orders/{id}/status`
-- **الوصف:** تحديث حالة الطلب أثناء دورة التحضير والتسليم.
-- **Request Body:**
-
-```json { *status*: *Preparing | Ready | Delivering | Completed* } ```
-
-- **Response:** الطلب بعد التحديث.
-- **ملاحظات:**
-
-    * التحديثات تظهر **Real-time** لكل الموظفين وDashboard.
-    * عند اكتمال الطلب، يتم خصم مكونات الأصناف من المخزون تلقائياً.
-
----
-
-## 5. Inventory – تنبيهات المخزون فقط
-
-### Get Low Stock Items
-
-- **Endpoint:** `**GET** /api/v1/Inventory/low-stock`
-- **الوصف:** عرض التنبيهات للأصناف أو المكونات التي وصلت إلى حد منخفض.
-- **Response:**
-
-```json
-[
+  "tableId": "uuid",
+  "orderType": "dine-in | takeaway | delivery",
+  "items": [
     {
-    *id*: *uuid*,
-    *name*: *string*,
-    *quantity*: 5,
-    *unit*: *kg | pcs | liter*,
-    *threshold*: 10
+      "menuItemId": "uuid",
+      "quantity": 2
     }
-]
-```
-
-- **ملاحظات:**
-
-  * يستخدم عند إنشاء الطلب لإظهار تنبيه إذا كانت المكونات ناقصة.
-
-### Get Recipe for Menu Item
-
-- **Endpoint:** `**GET** /api/v1/Inventory/recipe/{menuItemId}`
-- **الوصف:** عرض مكونات صنف معين للتحقق قبل الطلب.
-- **Response:**
-
-```json
-{
-    *menuItemId*: *uuid*,
-    *name*: *string*,
-    *ingredients*: [
-    {
-    *ingredientId*: *uuid*,
-    *name*: *string*,
-    *quantity*: **200**,
-    *unit*: *gram*
-    }
-    ]
+  ]
 }
-```
+Notes
+Backend splits items by target_department
 
----
+🇸🇦: إنشاء طلب ويتم تقسيمه تلقائيًا للمطبخ والباريستا
 
-## 6. Real-Time Notifications / SignalR
+PATCH /api/v1/Orders/{id}/status
 
-- **الأحداث:**
+Update order status
 
-    * `OrderCreated` → عند إنشاء أي طلب جديد.
-    * `OrderUpdated` → عند تغيير حالة الطلب.
-    * `LowStockAlert` → عند وصول أي مكون للحد الأدنى.
-
-**Payload Example:**
-
-```json
+Request
 {
-    *event*: *OrderUpdated*,
-    *orderId*: *uuid*,
-    *status*: *Ready*
+  "status": "preparing | ready | served | completed"
 }
-```
+Important Rules
+❌ لا تعدل global_status مباشرة
+✅ النظام يحسبها تلقائيًا
 
-- **ملاحظات:**
+🇸🇦: تحديث الحالة لكن اللوجك داخل الباك
 
-    * كل الموظفين المرتبطين بالطلب يتلقون التحديث لحظياً.
-    * الميني اب يحتاج إعداد اتصال SignalR عند فتح التطبيق.
+👨‍🍳 5. Kitchen / Barista Logic
+Same Orders endpoints
+Filter by department internally
+Behavior
+Chef يرى kitchen items فقط
+Barista يرى drinks فقط
 
----
+🇸🇦: كل قسم يشوف الأصناف الخاصة بيه فقط
 
-### Headers المشترك لكل Endpoints المحمية
+💳 6. Payments (Cashier)
+POST /api/v1/Payments
 
-``` Authorization: Bearer {JWT_TOKEN} ```
+Create payment
 
----
+{
+  "orderId": "uuid",
+  "amount": 25.5,
+  "method": "cash | card"
+}
+PATCH /api/v1/Payments/{id}/status
 
-✅ هذا ****README** كامل** للميني اب، يشمل:
+Update payment status
 
-- تسجيل الدخول والمستخدم
-- المنيو والفئات
-- الطاولات
-- إنشاء ومتابعة الطلبات
-- تنبيهات المخزون
-- التحديثات Real-time
+POST /api/v1/Payments/{id}/refund
 
+Refund payment
+
+🇸🇦: الكاشير يدير الدفع والاسترجاع
+
+🔗 7. Team 6 Integration (QR System)
+GET /api/public/team6/orders/{partnerOrderId}/status
+
+Track external order
+
+GET /api/public/team6/restaurants/{partnerRestaurantId}/users/{partnerUserId}/orders
+
+Get user order history
+
+🇸🇦: ربط الطلبات الجاية من QR (Team 6)
+
+⚡ 8. Real-Time (SignalR)
+Hub: /orderHub
+Events
+NewOrderPlaced
+OrderStatusChanged
+NewItemsToPrepare
+MyOrderStatusUpdate
+Example
+{
+  "event": "OrderStatusChanged",
+  "orderId": "uuid",
+  "status": "Ready"
+}
+
+🇸🇦: تحديث لحظي بدون refresh
+
+🔐 Common Headers
+Authorization: Bearer {JWT_TOKEN}
+📦 Axios Example
+import axios from "axios";
+
+const api = axios.create({
+  baseURL: "https://your-api-url.com/api/v1",
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export default api;
+✅ Summary
+Role-based system
+Real-time updates
+Department-based order splitting
+External QR integration (Team 6)
+
+🇸🇦:
+نظام احترافي:
+
+حسب الدور
+لحظي
+يقسم الطلبات حسب القسم
+مربوط ويا QR خارجي
