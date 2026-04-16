@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { mockOrders } from '../data/mockOrders';
-import { NOTIFICATION_TYPES, seedNotifications } from '../data/mockNotifications';
 import { AppStateContext } from './appStateContext';
 import { STATUS_META, ORDER_STATUS } from '../utils/status';
 import { generateId } from '../utils/id';
@@ -11,27 +9,28 @@ import { authService } from '../services/auth.service';
 
 export function AppStateProvider({ children }) {
   // Start with mock data as fallback; API data overwrites on success
-  const [orders, setOrders] = useState(mockOrders);
-  const [notifications, setNotifications] = useState(seedNotifications);
+  const [orders, setOrders] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [language, setLanguage] = useState('ar'); // 'ar' | 'en'
 
   // Get current role for SignalR subscriptions
   const storedUser = authService.getStoredUser();
   const currentRole = storedUser?.role?.toLowerCase() ?? '';
 
-  // ── Fetch orders from API on mount ─────────────────────────────────────
-  useEffect(() => {
+  const refetchOrders = useCallback(() => {
     ordersService.getAll()
       .then(apiOrders => {
-        if (apiOrders && apiOrders.length > 0) {
-          setOrders(apiOrders);
-        }
-        // If API returns empty or fails, keep mock data as fallback
+        if (apiOrders) setOrders(apiOrders);
       })
       .catch(err => {
-        console.warn('[AppState] API not available, using mock data:', err.message);
+        console.warn('[AppState] Failed to fetch orders:', err.message);
       });
   }, []);
+
+  // ── Fetch orders from API on mount ─────────────────────────────────────
+  useEffect(() => {
+    refetchOrders();
+  }, [refetchOrders]);
 
   // ── Notification helper ────────────────────────────────────────────────
   const pushNotification = useCallback((partial) => {
@@ -57,7 +56,7 @@ export function AppStateProvider({ children }) {
           .catch(() => {});
 
         pushNotification({
-          type: NOTIFICATION_TYPES.newOrder,
+          type: 'new_order',
           title: language === 'en' ? 'New Order Received' : 'طلب جديد وصل',
           body: language === 'en'
             ? `New order ${data.orderId || ''} has been placed.`
@@ -77,7 +76,7 @@ export function AppStateProvider({ children }) {
         const meta = STATUS_META[data.status];
         const label = meta?.label ?? data.status;
         pushNotification({
-          type: NOTIFICATION_TYPES.statusUpdated,
+          type: 'status_updated',
           title: language === 'en' ? 'Order Status Updated' : 'تم تحديث حالة الطلب',
           body: language === 'en'
             ? `Order ${data.orderId} is now: ${label}`
@@ -91,7 +90,7 @@ export function AppStateProvider({ children }) {
       // data = { orderId, items, department }
       if (data) {
         pushNotification({
-          type: NOTIFICATION_TYPES.newOrder,
+          type: 'new_order',
           title: language === 'en' ? 'New Items to Prepare' : 'أصناف جديدة للتحضير',
           body: language === 'en'
             ? `New items for order ${data.orderId || ''}`
@@ -137,7 +136,7 @@ export function AppStateProvider({ children }) {
       return [
         {
           id: generateId('ntf'),
-          type: NOTIFICATION_TYPES.statusUpdated,
+          type: 'status_updated',
           title: language === 'en' ? 'Order Status Updated' : 'تم تحديث حالة الطلب',
           body:
             language === 'en'
@@ -180,85 +179,10 @@ export function AppStateProvider({ children }) {
     );
   }, []);
 
-  const addOrder = useCallback(
-    ({ cartPayload, type, tableId, delivery, orderNote }) => {
-      if (!cartPayload || cartPayload.length === 0) return;
-      
-      const kitchenItems = [];
-      const baristaItems = [];
-      const flatItems = [];
-
-      cartPayload.forEach(item => {
-        const qtyString = item.qty > 1 ? `${item.qty}x ` : '';
-        const title = `${qtyString}${item.name}`;
-        
-        flatItems.push(title);
-
-        // Departmental Splitting Logic
-        // In real backend, target_department is used automatically
-        // This local split is for UI display only
-        if (item.product?.category === 'cat_drinks' || item.product?.category === 'drink') {
-           baristaItems.push(title);
-        } else {
-           kitchenItems.push(title);
-        }
-      });
-
-      const id = `ORD-${Math.floor(2049 + Math.random() * 900)}`;
-      const tableDisplay = type === 'takeaway' ? 'سفري' : type === 'delivery' ? 'توصيل' : tableId || 'صالة';
-
-      // Optimistic local update
-      const newOrder = {
-        id,
-        table: tableDisplay,
-        type,
-        delivery,
-        kitchenItems,
-        baristaItems,
-        items: flatItems,
-        minutesAgo: 0,
-        status: ORDER_STATUS.preparing,
-        kitchenStatus: kitchenItems.length > 0 ? ORDER_STATUS.preparing : null,
-        baristaStatus: baristaItems.length > 0 ? ORDER_STATUS.preparing : null,
-        notes: [orderNote, ...cartPayload.map(c => c.notes).filter(Boolean)].filter(Boolean).join(' | ') || '',
-      };
-      setOrders((prev) => [newOrder, ...prev]);
-
-      // Sync with API (backend auto-splits by target_department)
-      ordersService.create({
-        tableId: type === 'dine-in' ? tableId : undefined,
-        orderType: type,
-        items: cartPayload.map(item => ({
-          menuItemId: item.productId,
-          quantity: item.qty,
-        })),
-      }).then(apiOrder => {
-        // Update local order with real API ID if available
-        if (apiOrder?.id) {
-          setOrders(prev => prev.map(o => o.id === id ? { ...o, id: apiOrder.id } : o));
-        }
-      }).catch(err => {
-        console.error('[AppState] Failed to create order via API:', err.message);
-      });
-
-      setNotifications((prev) => [
-        {
-          id: generateId('ntf'),
-          type: NOTIFICATION_TYPES.newOrder,
-          title: language === 'en' ? 'New Order Received' : 'طلب جديد وصل',
-          body:
-            language === 'en'
-              ? `Order ${id} for ${tableDisplay} — ${flatItems.slice(0, 3).join(', ')}${flatItems.length > 3 ? '...' : ''}`
-              : `الطلب ${id} لـ ${tableDisplay} — ${flatItems.slice(0, 3).join('، ')}${flatItems.length > 3 ? '...' : ''}`,
-          read: false,
-          createdAt: Date.now(),
-          orderId: id,
-        },
-        ...prev,
-      ]);
-    },
-    [language],
-  );
+  const addOrder = useCallback(() => {
+     // Deprecated: use refs to refetchOrders after submission externally
+     refetchOrders();
+  }, [refetchOrders]);
 
   // ── Notification actions ──────────────────────────────────────────────────
   const markNotificationRead = useCallback(
@@ -285,6 +209,7 @@ export function AppStateProvider({ children }) {
       updateOrderStatus,
       updateDepartmentStatus,
       addOrder,
+      refetchOrders,
       notifications,
       markNotificationRead,
       markAllNotificationsRead,
@@ -292,7 +217,7 @@ export function AppStateProvider({ children }) {
       language,
       switchLanguage,
     }),
-    [orders, updateOrderStatus, updateDepartmentStatus, addOrder, notifications, markNotificationRead, markAllNotificationsRead, pushNotification, language, switchLanguage],
+    [orders, updateOrderStatus, updateDepartmentStatus, addOrder, refetchOrders, notifications, markNotificationRead, markAllNotificationsRead, pushNotification, language, switchLanguage],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

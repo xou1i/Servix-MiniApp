@@ -1,6 +1,6 @@
 import { Bell, PackageCheck, Clock, AlertCircle } from 'lucide-react';
 import { useAppState } from '../hooks/useAppState';
-import { NOTIFICATION_TYPES } from '../data/mockNotifications';
+import { NOTIFICATION_TYPES } from '../utils/notificationMeta';
 import { formatNotificationTime } from '../utils/formatters';
 
 const ICON_MAP = {

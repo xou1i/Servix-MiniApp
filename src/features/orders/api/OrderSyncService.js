@@ -44,8 +44,8 @@ class OrderSyncService {
 
     // Build the API request body matching POST /api/v1/Orders
     const apiPayload = {
-      tableId: context.type === 'dine-in' ? context.tableId : undefined,
-      orderType: context.type,  // 'dine-in' | 'takeaway' | 'delivery'
+      tableId: context.type === 'dine-in' ? context.tableId : null,
+      orderType: context.type === 'dine-in' ? 'dineIn' : context.type,  // 'dineIn' | 'takeaway' | 'delivery'
       items: cart.map(item => ({
         menuItemId: item.productId,
         quantity: item.qty,

@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ArrowRight } from 'lucide-react';
+import { Loader2, Search, ArrowRight } from 'lucide-react';
 import { useOrderStore } from '../../store/useOrderStore';
-import { MOCK_ITEMS } from '../../data/mockMenu';
 import { formatIQD } from '../../../../utils/currencyFormatter';
 import ItemModifiersModal from './ItemModifiersModal';
 
 export default function MenuBrowser() {
-  const { view, addItem } = useOrderStore();
+  const { view, addItem, menuItems, isLoadingMenu } = useOrderStore();
   const navigate = useNavigate();
   const [activeItem, setActiveItem] = useState(null);
 
-  const filteredItems = MOCK_ITEMS.filter(item =>
-    (view.activeCategoryId === 'cat_all' || item.category === view.activeCategoryId) &&
-    item.name.includes(view.searchQuery)
-  );
+  const filteredItems = menuItems.filter(item => {
+    const itemCat = item.category || item.target_department;
+    const matchesCategory = view.activeCategoryId === 'cat_all' || itemCat === view.activeCategoryId;
+    const matchesSearch = item.name?.toLowerCase().includes(view.searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   const handleItemClick = (item) => {
     if (item.hasModifiers) {
@@ -55,27 +56,37 @@ export default function MenuBrowser() {
 
       {/* Grid */}
       <div className="flex-1 overflow-y-auto px-6 pb-6 no-scrollbar">
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">
-          {filteredItems.map((item, i) => (
-            <button
-              key={item.id}
-              onClick={() => handleItemClick(item)}
-              className={`bg-white border border-transparent p-4 rounded-3xl flex flex-col items-center justify-center gap-3 text-center transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_8px_24px_rgba(29,78,137,0.08)] hover:border-[var(--surface-high)] stagger animate-slide-up group relative`}
-              style={{ '--delay': `${Math.min(i * 30, 300)}ms` }}
-            >
-              {item.hasModifiers && (
-                <span className="absolute top-3 left-3 bg-[var(--surface-low)] text-[var(--color-primary)] text-[10px] font-black px-2 py-0.5 rounded-md">تخصيص</span>
-              )}
-              <div className="w-24 h-24 bg-gradient-to-br from-[var(--surface-low)] to-white rounded-full flex items-center justify-center text-5xl shadow-[inset_0_4px_12px_rgba(0,0,0,0.02)] group-hover:scale-110 transition-transform duration-300">
-                {item.image}
-              </div>
-              <div className="mt-2 text-center w-full">
-                <h3 className="font-bold text-[var(--text-primary)] text-sm leading-tight truncate px-1">{item.name}</h3>
-                <span className="inline-block mt-1.5 font-bold text-[13px] bg-[var(--surface-low)] text-[var(--color-primary)] px-3 py-1 rounded-full">{formatIQD(item.price)}</span>
-              </div>
-            </button>
-          ))}
-        </div>
+        {isLoadingMenu ? (
+          <div className="flex flex-col items-center justify-center pt-20 pb-4 w-full">
+             <Loader2 size={36} className="text-[var(--color-primary)] animate-spin" />
+             <p className="font-bold text-sm text-[var(--text-muted)] mt-3">جاري تحميل القائمة...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">
+            {filteredItems.map((item, i) => (
+              <button
+                key={item.id}
+                onClick={() => handleItemClick(item)}
+                className={`bg-white border border-transparent p-4 rounded-3xl flex flex-col items-center justify-center gap-3 text-center transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_8px_24px_rgba(29,78,137,0.08)] hover:border-[var(--surface-high)] stagger animate-slide-up group relative`}
+                style={{ '--delay': `${Math.min(i * 30, 300)}ms` }}
+              >
+                {item.hasModifiers && (
+                  <span className="absolute top-3 left-3 bg-[var(--surface-low)] text-[var(--color-primary)] text-[10px] font-black px-2 py-0.5 rounded-md">تخصيص</span>
+                )}
+                <div className="w-24 h-24 bg-gradient-to-br from-[var(--surface-low)] to-white rounded-full flex items-center justify-center text-5xl shadow-[inset_0_4px_12px_rgba(0,0,0,0.02)] group-hover:scale-110 transition-transform duration-300">
+                  {item.image || '🍔'}
+                </div>
+                <div className="mt-2 text-center w-full">
+                  <h3 className="font-bold text-[var(--text-primary)] text-sm leading-tight truncate px-1">{item.name}</h3>
+                  <span className="inline-block mt-1.5 font-bold text-[13px] bg-[var(--surface-low)] text-[var(--color-primary)] px-3 py-1 rounded-full">{formatIQD(item.price)}</span>
+                </div>
+              </button>
+            ))}
+            {filteredItems.length === 0 && (
+               <div className="col-span-full pt-10 flex text-center justify-center text-[var(--text-muted)] font-bold text-sm">لا توجد أصناف تطابق البحث أو التصنيف.</div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Modifier Modal */}

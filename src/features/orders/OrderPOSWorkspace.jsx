@@ -1,8 +1,14 @@
+import { useEffect } from 'react';
 import CategorySidebar from './components/menu/CategorySidebar';
 import MenuBrowser from './components/menu/MenuBrowser';
 import OrderCart from './components/cart/OrderCart';
+import { useOrderStore } from './store/useOrderStore';
 
 export default function OrderPOSWorkspace({ roleKey }) {
+  useEffect(() => {
+    useOrderStore.getState().fetchMenu();
+  }, []);
+
   return (
     <div className="fixed inset-0 z-[100] h-[var(--app-height,100vh)] w-full flex flex-col md:flex-row bg-[#F1F5F9] md:bg-[#F8FAFC] overflow-hidden animate-pos-entrance font-sans" dir="rtl">
 

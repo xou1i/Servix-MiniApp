@@ -1,5 +1,10 @@
 import { AlarmClock, Bell, Inbox, PackageX } from 'lucide-react';
-import { NOTIFICATION_TYPES } from '../data/mockNotifications';
+export const NOTIFICATION_TYPES = {
+  newOrder: 'new_order',
+  statusUpdated: 'status_updated',
+  delayed: 'delayed',
+  itemUnavailable: 'item_unavailable',
+};
 
 export function getNotificationIcon(type) {
   switch (type) {

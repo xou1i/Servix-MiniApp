@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
 import { useOrderStore } from '../../store/useOrderStore';
-import { MOCK_CATEGORIES } from '../../data/mockMenu';
 import * as Icons from 'lucide-react';
 
 export default function CategorySidebar({ roleKey }) {
-  const { view, setCategory, context, setContext } = useOrderStore();
+  const { view, setCategory, context, setContext, categories } = useOrderStore();
   
   useEffect(() => {
     // If Waiter, strictly enforce dine-in context
@@ -17,7 +16,7 @@ export default function CategorySidebar({ roleKey }) {
     <div className="h-full bg-[#F8FAFC] flex flex-row md:flex-col items-center md:items-stretch py-3 md:py-6 px-3 gap-2 z-10 w-full overflow-x-auto md:overflow-y-auto overflow-y-hidden md:overflow-x-hidden no-scrollbar">
       
       <div className="w-full flex-row md:flex-col flex gap-3 md:gap-2">
-        {MOCK_CATEGORIES.map(cat => {
+        {categories.map(cat => {
           const isActive = view.activeCategoryId === cat.id;
           const IconComponent = Icons[cat.icon] || Icons.HelpCircle;
           

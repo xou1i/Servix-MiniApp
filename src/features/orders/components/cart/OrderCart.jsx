@@ -11,7 +11,7 @@ export default function OrderCart({ roleKey }) {
      cart, lifecycle, undoLastAction, undoStack, updateQuantity, removeItem, splitItem, 
      context, setContext, submitOrder, orderNote, setOrderNote, openContextModal
    } = useOrderStore();
-   const { addOrder } = useAppState();
+   const { addOrder, refetchOrders } = useAppState();
    const navigate = useNavigate();
    const [isPrinting, setIsPrinting] = useState(false);
 
@@ -238,14 +238,13 @@ export default function OrderCart({ roleKey }) {
          <div className="flex gap-2">
            <button 
              onClick={() => submitOrder(({ cart: submittedCart, context: submittedContext, orderNote: submittedOrderNote }) => {
-                // Bridge Zustand cart → global AppState orders list
-                addOrder({
-                  cartPayload: submittedCart,
-                  type: submittedContext.type,
-                  tableId: submittedContext.tableId,
-                  delivery: submittedContext.delivery,
-                  orderNote: submittedOrderNote
-                });
+                // Fetch fresh lists
+                const appState = useAppState.getState ? useAppState.getState() : null;
+                // Since useAppState is typically a context hook, we should destructure it at the component top.
+                // Wait, useAppState is a context? It's destructured at line 14: const { addOrder, refetchOrders } = useAppState();
+                if (refetchOrders) refetchOrders();
+                else if (addOrder) addOrder();
+                
                 navigate('/orders');
              })}
              disabled={cart.length === 0 || lifecycle === 'sending' || lifecycle === 'sent' || !effectiveContext.type}

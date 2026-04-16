@@ -5,8 +5,8 @@ import { ROLES } from '../constants/roles';
 import logoSrc from '../assets/Servix - Logo.png';
 
 const ROLE_ICONS = {
-  waiter:  User,
-  chef:    ChefHat,
+  waiter: User,
+  chef: ChefHat,
   barista: Coffee,
   cashier: Banknote,
 };
@@ -20,16 +20,16 @@ function RoleSelectionStep({ onSelect, isAr }) {
         <h1 className="font-headline text-4xl font-bold text-[var(--color-primary)] tracking-tight mb-3">
           {isAr ? 'مرحباً بك في سيرفيكس' : 'Welcome to Servix'}
         </h1>
-        <p className="text-base text-[var(--text-secondary)] max-w-sm">
+        {/* <p className="text-base text-[var(--text-secondary)] max-w-sm">
           {isAr ? 'اختر دورك للمتابعة' : 'Select your role to continue'}
-        </p>
+        </p> */}
       </div>
 
       <div className="grid w-full grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {Object.values(ROLES).map((role, i) => {
-          const Icon  = ROLE_ICONS[role.key] ?? User;
+          const Icon = ROLE_ICONS[role.key] ?? User;
           const label = isAr ? role.labelAr : role.labelEn;
-          const hint  = isAr ? role.hintAr  : role.hintEn;
+          const hint = isAr ? role.hintAr : role.hintEn;
 
           return (
             <button
@@ -58,7 +58,7 @@ function RoleSelectionStep({ onSelect, isAr }) {
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
                 {isAr
-                  ? <ArrowLeft  size={14} strokeWidth={2.5} />
+                  ? <ArrowLeft size={14} strokeWidth={2.5} />
                   : <ArrowRight size={14} strokeWidth={2.5} />
                 }
               </div>
@@ -75,11 +75,11 @@ function CredentialsStep({ roleKey, onBack, onLogin, isAr }) {
   const role = ROLES[roleKey];
   const Icon = ROLE_ICONS[roleKey] ?? User;
 
-  const [email,    setEmail]    = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPw,   setShowPw]   = useState(false);
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState(null);
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -113,7 +113,7 @@ function CredentialsStep({ roleKey, onBack, onLogin, isAr }) {
       >
         {isAr
           ? <><ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" /> {isAr ? 'تغيير الدور' : 'Change role'}</>
-          : <><ArrowLeft  size={16} className="group-hover:-translate-x-1 transition-transform" /> Change role</>
+          : <><ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> Change role</>
         }
       </button>
 
@@ -195,9 +195,8 @@ function CredentialsStep({ roleKey, onBack, onLogin, isAr }) {
         <button
           type="submit"
           disabled={loading}
-          className={`w-full btn-primary py-4 rounded-2xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all ${
-            loading ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-xl active:scale-[0.98]'
-          }`}
+          className={`w-full btn-primary py-4 rounded-2xl text-sm font-bold tracking-wide flex items-center justify-center gap-2 transition-all ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-xl active:scale-[0.98]'
+            }`}
           style={{ background: role.color }}
         >
           {loading
@@ -230,11 +229,11 @@ export default function LoginPage({ onLogin }) {
       {!selectedRole
         ? <RoleSelectionStep onSelect={setSelectedRole} isAr={isAr} />
         : <CredentialsStep
-            roleKey={selectedRole}
-            onBack={() => setSelectedRole(null)}
-            onLogin={onLogin}
-            isAr={isAr}
-          />
+          roleKey={selectedRole}
+          onBack={() => setSelectedRole(null)}
+          onLogin={onLogin}
+          isAr={isAr}
+        />
       }
 
       <p className="absolute bottom-6 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]/50">

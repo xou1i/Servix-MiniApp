@@ -2,11 +2,17 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { generateGroupId } from '../utils/cartUtils';
 import { orderSyncService } from '../api/OrderSyncService';
+import { menuService } from '../../../services/menu.service';
 
 export const useOrderStore = create((set, get) => ({
   // --- 1. UI TEMPORARY CONTEXT & SEARCH STATE ---
   context: { type: null, tableId: null, delivery: null },
   view: { activeCategoryId: 'cat_all', searchQuery: '', isContextModalOpen: false },
+  
+  // --- MENU DATA STATE ---
+  menuItems: [],
+  categories: [{ id: 'cat_all', name: 'الكل', icon: 'LayoutGrid' }],
+  isLoadingMenu: false,
   
   // --- 2. ORDER LIFECYCLE DOMAIN ---
   lifecycle: 'draft', // 'draft' | 'sent' | 'locked' | 'completed'
@@ -23,6 +29,35 @@ export const useOrderStore = create((set, get) => ({
   setCategory: (categoryId) => set((state) => ({ view: { ...state.view, activeCategoryId: categoryId } })),
   setSearchQuery: (query) => set((state) => ({ view: { ...state.view, searchQuery: query } })),
   setOrderNote: (note) => set({ orderNote: note }),
+  
+  // --- ACTIONS: DATA FETCHING ---
+  fetchMenu: async () => {
+    set({ isLoadingMenu: true });
+    try {
+      const items = await menuService.getAll();
+      
+      // Map categories
+      const dynamicCategories = [{ id: 'cat_all', name: 'الكل', icon: 'LayoutGrid' }];
+      const catSet = new Set();
+      
+      items.forEach(item => {
+        const cat = item.category || item.target_department;
+        if (cat && !catSet.has(cat)) {
+          catSet.add(cat);
+          dynamicCategories.push({
+            id: cat,
+            name: cat,
+            icon: 'LayoutGrid' // Standard fallback icon
+          });
+        }
+      });
+      
+      set({ menuItems: items, categories: dynamicCategories, isLoadingMenu: false });
+    } catch (err) {
+      console.error('[Menu] Failed to fetch:', err);
+      set({ isLoadingMenu: false });
+    }
+  },
   
   // --- ACTIONS: CART MUTATION (With Grouping & Undo) ---
   addItem: (product, modifiers = [], notes = "") => {
