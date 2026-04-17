@@ -1,7 +1,6 @@
 import { ORDER_STATUS } from './status';
 
 export const STATUS_TRANSITIONS = {
-  [ORDER_STATUS.draft]: [ORDER_STATUS.preparing, ORDER_STATUS.cancelled],
   [ORDER_STATUS.preparing]: [ORDER_STATUS.ready, ORDER_STATUS.cancelled],
   [ORDER_STATUS.ready]: [ORDER_STATUS.served, ORDER_STATUS.cancelled],
   [ORDER_STATUS.served]: [],
@@ -16,7 +15,7 @@ export function getNextStatusActions(currentStatus) {
 
 export const STATUS_ACTION_LABELS = {
   ar: {
-    [ORDER_STATUS.preparing]: 'بدء التحضير',
+    [ORDER_STATUS.preparing]: 'قيد التحضير',
     [ORDER_STATUS.ready]: 'جاهز للتقديم',
     [ORDER_STATUS.served]: 'تم التقديم',
     [ORDER_STATUS.billed]: 'إصدار فاتورة',
@@ -24,7 +23,7 @@ export const STATUS_ACTION_LABELS = {
     [ORDER_STATUS.cancelled]: 'إلغاء',
   },
   en: {
-    [ORDER_STATUS.preparing]: 'Start Cooking',
+    [ORDER_STATUS.preparing]: 'Preparing',
     [ORDER_STATUS.ready]: 'Mark Ready',
     [ORDER_STATUS.served]: 'Mark Served',
     [ORDER_STATUS.billed]: 'Generate Bill',

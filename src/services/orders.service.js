@@ -1,3 +1,4 @@
+// orders.service.js
 import api, { unwrap } from './api';
 
 export const ordersService = {
@@ -8,12 +9,25 @@ export const ordersService = {
    */
   getAll: async (filters = {}) => {
     const params = {};
-    if (filters.status)       params.status       = filters.status;
+    if (filters.status) params.status = filters.status;
     if (filters.departmentId) params.departmentId = filters.departmentId;
 
     const { data } = await api.get('/Orders', { params });
     const result = unwrap(data);
-    return Array.isArray(result) ? result : [];
+    if (Array.isArray(result)) return result;
+    if (result && typeof result === 'object') {
+      if (Array.isArray(result.items)) return result.items;
+      if (Array.isArray(result.data)) return result.data;
+      if (Array.isArray(result.orders)) return result.orders;
+      if (Array.isArray(result.result)) return result.result;
+      if (Array.isArray(result.value)) return result.value;
+      
+      // Deep fallback search (find any array within the top level object)
+      const possibleArray = Object.values(result).find(val => Array.isArray(val));
+      if (possibleArray) return possibleArray;
+    }
+    console.warn("[OrdersService] Failed to extract array from API response:", result);
+    return [];
   },
 
   /**

@@ -1,3 +1,4 @@
+// AppStateProvider.jsx
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppStateContext } from './appStateContext';
 import { STATUS_META, ORDER_STATUS } from '../utils/status';
@@ -7,8 +8,71 @@ import { ordersService } from '../services/orders.service';
 import { useSignalR } from '../hooks/useSignalR';
 import { authService } from '../services/auth.service';
 
+// ── Helper: normalize a single backend order into frontend shape ──────────
+function normalizeOrder(o) {
+  const rawItems = Array.isArray(o.items) ? o.items : [];
+
+  // Format for OrderCard (expects array of strings)
+  const itemStrings = rawItems.map(ri =>
+    `${ri.quantity > 1 ? ri.quantity + 'x ' : ''}${ri.menuItemName || ri.name || 'صنف'}`
+  );
+
+  // Kitchen handles all food; Barista handles drinks
+  const baristaDepartmentNames = ['البارستا', 'المشروبات والعصائر'];
+
+  const kitchenStrs =
+    Array.isArray(o.kitchenItems) && typeof o.kitchenItems[0] === 'string'
+      ? o.kitchenItems
+      : rawItems
+          .filter(ri => !baristaDepartmentNames.includes(ri.departmentName))
+          .map(ri => `${ri.quantity > 1 ? ri.quantity + 'x ' : ''}${ri.menuItemName || ri.name || 'صنف'}`);
+
+  const baristaStrs =
+    Array.isArray(o.baristaItems) && typeof o.baristaItems[0] === 'string'
+      ? o.baristaItems
+      : rawItems
+          .filter(ri => baristaDepartmentNames.includes(ri.departmentName))
+          .map(ri => `${ri.quantity > 1 ? ri.quantity + 'x ' : ''}${ri.menuItemName || ri.name || 'صنف'}`);
+
+  // Normalize Backend Status -> Frontend ORDER_STATUS
+  // Backend sends: Pending, Confirmed, Preparing, Ready, Served, Completed, Cancelled
+  let normalizedStatus = (o.status || '').toLowerCase();
+  if (normalizedStatus === 'pending' || normalizedStatus === 'confirmed') normalizedStatus = 'preparing';
+  if (normalizedStatus === 'completed') normalizedStatus = 'paid';
+  // Already matching: preparing, ready, served, cancelled
+
+  // Normalize order type: Backend sends 'DineIn'/'TakeAway'/'Delivery'
+  const rawType = (o.orderType || o.type || '').toLowerCase().replace(/[-_\s]/g, '');
+  let normalizedType = 'takeaway';
+  if (rawType === 'dinein') normalizedType = 'dine-in';
+  else if (rawType === 'takeaway') normalizedType = 'takeaway';
+  else if (rawType === 'delivery') normalizedType = 'delivery';
+
+  // Calculate minutesAgo from createdAt
+  let minutesAgo = 0;
+  if (o.createdAt) {
+    const created = new Date(o.createdAt);
+    minutesAgo = Math.max(0, Math.round((Date.now() - created.getTime()) / 60000));
+  }
+
+  return {
+    ...o,
+    status: normalizedStatus,
+    type: normalizedType,
+    // Table code: backend may send tableNumber, code, or nothing
+    table: o.tableNumber || o.code || o.tableCode || null,
+    tableNumber: o.tableNumber || o.code || o.tableCode || null,
+    minutesAgo,
+    // Notes: backend may use note, notes, specialNotes, or customerNotes
+    notes: o.note || o.notes || o.specialNotes || o.customerNotes || '',
+    _rawItems: rawItems,
+    items: itemStrings.length > 0 ? itemStrings : (o.items || []),
+    kitchenItems: kitchenStrs.length > 0 ? kitchenStrs : (o.kitchenItems || []),
+    baristaItems: baristaStrs.length > 0 ? baristaStrs : (o.baristaItems || []),
+  };
+}
+
 export function AppStateProvider({ children }) {
-  // Start with mock data as fallback; API data overwrites on success
   const [orders, setOrders] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [language, setLanguage] = useState('ar'); // 'ar' | 'en'
@@ -18,19 +82,45 @@ export function AppStateProvider({ children }) {
   const currentRole = storedUser?.role?.toLowerCase() ?? '';
 
   const refetchOrders = useCallback(() => {
-    ordersService.getAll()
+    return ordersService.getAll()
       .then(apiOrders => {
-        if (apiOrders) setOrders(apiOrders);
+        if (Array.isArray(apiOrders)) {
+          const processedOrders = apiOrders.map(normalizeOrder);
+          setOrders(processedOrders);
+        }
       })
       .catch(err => {
         console.warn('[AppState] Failed to fetch orders:', err.message);
       });
   }, []);
 
+  // Helper: add a single new order to state (avoids full refetch)
+  const addNewOrderToState = useCallback((rawOrder) => {
+    if (!rawOrder || !rawOrder.id) return;
+    const processed = normalizeOrder(rawOrder);
+    setOrders(prev => {
+      // Avoid duplicates
+      if (prev.some(o => o.id === processed.id)) return prev;
+      return [processed, ...prev];
+    });
+  }, []);
+
   // ── Fetch orders from API on mount ─────────────────────────────────────
   useEffect(() => {
     refetchOrders();
   }, [refetchOrders]);
+
+  // ── Update minutesAgo every 60s ───────────────────────────────────────
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setOrders(prev => prev.map(o => {
+        if (!o.createdAt) return o;
+        const created = new Date(o.createdAt);
+        return { ...o, minutesAgo: Math.max(0, Math.round((Date.now() - created.getTime()) / 60000)) };
+      }));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // ── Notification helper ────────────────────────────────────────────────
   const pushNotification = useCallback((partial) => {
@@ -44,16 +134,13 @@ export function AppStateProvider({ children }) {
   useSignalR({
     role: currentRole,
     onNewOrder: useCallback((data) => {
-      // data = { orderId, orderDetails, ... } — shape depends on backend
       if (data) {
-        // Refresh orders from API to get full data
-        ordersService.getAll()
-          .then(apiOrders => {
-            if (apiOrders && apiOrders.length > 0) {
-              setOrders(apiOrders);
-            }
-          })
-          .catch(() => {});
+        // Add the single order directly instead of refetching all
+        if (data.orderDetails) {
+          addNewOrderToState(data.orderDetails);
+        } else {
+          refetchOrders();
+        }
 
         pushNotification({
           type: 'new_order',
@@ -64,17 +151,20 @@ export function AppStateProvider({ children }) {
           orderId: data.orderId,
         });
       }
-    }, [language, pushNotification]),
+    }, [language, pushNotification, refetchOrders, addNewOrderToState]),
 
     onStatusChanged: useCallback((data) => {
-      // data = { orderId, status }
       if (data?.orderId && data?.status) {
+        let normalizedStatus = (data.status || '').toLowerCase();
+        if (normalizedStatus === 'pending' || normalizedStatus === 'confirmed') normalizedStatus = 'preparing';
+        if (normalizedStatus === 'completed') normalizedStatus = 'paid';
+
         setOrders(prev => prev.map(o =>
-          o.id === data.orderId ? { ...o, status: data.status } : o
+          o.id === data.orderId ? { ...o, status: normalizedStatus } : o
         ));
 
-        const meta = STATUS_META[data.status];
-        const label = meta?.label ?? data.status;
+        const meta = STATUS_META[normalizedStatus];
+        const label = meta?.label ?? normalizedStatus;
         pushNotification({
           type: 'status_updated',
           title: language === 'en' ? 'Order Status Updated' : 'تم تحديث حالة الطلب',
@@ -87,7 +177,6 @@ export function AppStateProvider({ children }) {
     }, [language, pushNotification]),
 
     onNewItems: useCallback((data) => {
-      // data = { orderId, items, department }
       if (data) {
         pushNotification({
           type: 'new_order',
@@ -101,10 +190,12 @@ export function AppStateProvider({ children }) {
     }, [language, pushNotification]),
 
     onMyOrderUpdate: useCallback((data) => {
-      // data = { orderId, status }
       if (data?.orderId && data?.status) {
+        let normalizedStatus = (data.status || '').toLowerCase();
+        if (normalizedStatus === 'pending' || normalizedStatus === 'confirmed') normalizedStatus = 'preparing';
+        if (normalizedStatus === 'completed') normalizedStatus = 'paid';
         setOrders(prev => prev.map(o =>
-          o.id === data.orderId ? { ...o, status: data.status } : o
+          o.id === data.orderId ? { ...o, status: normalizedStatus } : o
         ));
       }
     }, []),
@@ -123,10 +214,9 @@ export function AppStateProvider({ children }) {
       }),
     );
 
-    // Sync with API (fire-and-forget with error logging)
+    // Sync with API
     ordersService.updateStatus(orderId, nextStatus).catch(err => {
       console.error('[AppState] Failed to update order status via API:', err.message);
-      // Optionally rollback: setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: prevStatus } : o));
     });
 
     setNotifications((prev) => {
@@ -163,7 +253,6 @@ export function AppStateProvider({ children }) {
         const kitchenResolved = !o.kitchenItems?.length || resolvedStatuses.includes(newKitchenStatus);
         const baristaResolved = !o.baristaItems?.length || resolvedStatuses.includes(newBaristaStatus);
         
-        // If both departments are resolved to at least 'ready', sync parent dynamically
         let newOrderStatus = o.status;
         if (kitchenResolved && baristaResolved) {
            newOrderStatus = (newKitchenStatus === ORDER_STATUS.served || newBaristaStatus === ORDER_STATUS.served) ? ORDER_STATUS.served : ORDER_STATUS.ready;
@@ -179,10 +268,13 @@ export function AppStateProvider({ children }) {
     );
   }, []);
 
-  const addOrder = useCallback(() => {
-     // Deprecated: use refs to refetchOrders after submission externally
-     refetchOrders();
-  }, [refetchOrders]);
+  const addOrder = useCallback((rawOrder) => {
+    if (rawOrder && rawOrder.id) {
+      addNewOrderToState(rawOrder);
+    } else {
+      refetchOrders();
+    }
+  }, [refetchOrders, addNewOrderToState]);
 
   // ── Notification actions ──────────────────────────────────────────────────
   const markNotificationRead = useCallback(
@@ -209,6 +301,7 @@ export function AppStateProvider({ children }) {
       updateOrderStatus,
       updateDepartmentStatus,
       addOrder,
+      addNewOrderToState,
       refetchOrders,
       notifications,
       markNotificationRead,
@@ -217,7 +310,7 @@ export function AppStateProvider({ children }) {
       language,
       switchLanguage,
     }),
-    [orders, updateOrderStatus, updateDepartmentStatus, addOrder, refetchOrders, notifications, markNotificationRead, markAllNotificationsRead, pushNotification, language, switchLanguage],
+    [orders, updateOrderStatus, updateDepartmentStatus, addOrder, addNewOrderToState, refetchOrders, notifications, markNotificationRead, markAllNotificationsRead, pushNotification, language, switchLanguage],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

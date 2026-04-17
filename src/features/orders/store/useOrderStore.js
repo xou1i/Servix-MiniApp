@@ -1,24 +1,29 @@
+// useOrderStore.js
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { generateGroupId } from '../utils/cartUtils';
 import { orderSyncService } from '../api/OrderSyncService';
 import { menuService } from '../../../services/menu.service';
+import { ordersService } from '../../../services/orders.service';
+import { tablesService } from '../../../services/tables.service';
+import api, { unwrap } from '../../../services/api';
 
 export const useOrderStore = create((set, get) => ({
   // --- 1. UI TEMPORARY CONTEXT & SEARCH STATE ---
   context: { type: null, tableId: null, delivery: null },
-  view: { activeCategoryId: 'cat_all', searchQuery: '', isContextModalOpen: false },
-  
+  view: { activeCategoryId: 'cat_all', activeDepartmentId: null, searchQuery: '', isContextModalOpen: false },
+
   // --- MENU DATA STATE ---
   menuItems: [],
-  categories: [{ id: 'cat_all', name: 'الكل', icon: 'LayoutGrid' }],
+  categories: [],
+  departments: [],
   isLoadingMenu: false,
-  
+
   // --- 2. ORDER LIFECYCLE DOMAIN ---
   lifecycle: 'draft', // 'draft' | 'sent' | 'locked' | 'completed'
-  
+
   // --- 3. CART STATE & UNDO STACK ---
-  cart: [], 
+  cart: [],
   orderNote: "",
   undoStack: [], // Array of previous cart arrays (Max length: 5)
 
@@ -29,71 +34,91 @@ export const useOrderStore = create((set, get) => ({
   setCategory: (categoryId) => set((state) => ({ view: { ...state.view, activeCategoryId: categoryId } })),
   setSearchQuery: (query) => set((state) => ({ view: { ...state.view, searchQuery: query } })),
   setOrderNote: (note) => set({ orderNote: note }),
-  
+
   // --- ACTIONS: DATA FETCHING ---
   fetchMenu: async () => {
     set({ isLoadingMenu: true });
     try {
-      const items = await menuService.getAll();
-      
-      // Map categories
-      const dynamicCategories = [{ id: 'cat_all', name: 'الكل', icon: 'LayoutGrid' }];
-      const catSet = new Set();
-      
-      items.forEach(item => {
-        const cat = item.category || item.target_department;
-        if (cat && !catSet.has(cat)) {
-          catSet.add(cat);
-          dynamicCategories.push({
-            id: cat,
-            name: cat,
-            icon: 'LayoutGrid' // Standard fallback icon
-          });
+      const results = await Promise.allSettled([
+        menuService.getAll(),
+        menuService.getDepartments(),
+        menuService.getCategories()
+      ]);
+
+      let iVal = results[0].status === 'fulfilled' ? results[0].value : [];
+      let dVal = results[1].status === 'fulfilled' ? results[1].value : [];
+      let cVal = results[2].status === 'fulfilled' ? results[2].value : [];
+
+      const extract = (val) => {
+        if (Array.isArray(val)) return val;
+        if (val && typeof val === 'object') {
+          if (Array.isArray(val.items)) return val.items;
+          if (Array.isArray(val.data)) return val.data;
         }
+        return [];
+      };
+
+      const extractedItems = extract(iVal);
+      const extractedDepts = extract(dVal);
+      const extractedCats = extract(cVal);
+
+      console.log("MENU SETTLED:", { items: extractedItems, departments: extractedDepts, categories: extractedCats });
+
+      const builtDepts = Array.from(
+        new Map(
+          extractedCats
+            .filter(c => c.departmentId && c.departmentName)
+            .map(c => [c.departmentId, { id: c.departmentId, name: c.departmentName }])
+        ).values()
+      );
+
+      set({ 
+        menuItems: extractedItems,
+        departments: builtDepts,
+        categories: extractedCats,
+        isLoadingMenu: false 
       });
-      
-      set({ menuItems: items, categories: dynamicCategories, isLoadingMenu: false });
     } catch (err) {
-      console.error('[Menu] Failed to fetch:', err);
+      console.error('[Menu] Failed to settle fetches:', err);
       set({ isLoadingMenu: false });
     }
   },
-  
+
   // --- ACTIONS: CART MUTATION (With Grouping & Undo) ---
   addItem: (product, modifiers = [], notes = "") => {
     const currentState = get();
-    
+
     const prevState = currentState.cart;
     const groupId = generateGroupId(product.id, modifiers, notes);
-    
+
     set((state) => {
       const existing = state.cart.find(i => i.groupId === groupId);
-      const newCart = existing 
+      const newCart = existing
         ? state.cart.map(i => i.groupId === groupId ? { ...i, qty: i.qty + 1 } : i)
-        : [...state.cart, { 
-            id: uuidv4(), 
-            groupId, 
-            productId: product.id, 
-            name: product.nameAr || product.name,
-            unitPrice: product.price,
-            modifiers, 
-            notes, 
-            qty: 1,
-            product // keeping a ref to product for image/rendering logic
-          }];
+        : [...state.cart, {
+          id: uuidv4(),
+          groupId,
+          productId: product.id,  // Backend GUID — used in submitOrder payload
+          name: product.name || product.nameAr || 'صنف',
+          unitPrice: product.price ?? product.unitPrice ?? 0,
+          modifiers,
+          notes,
+          qty: 1,
+          product
+        }];
 
-      return { 
-        cart: newCart, 
-        undoStack: [...state.undoStack, prevState].slice(-5) 
+      return {
+        cart: newCart,
+        undoStack: [...state.undoStack, prevState].slice(-5)
       };
     });
   },
 
   updateQuantity: (groupId, delta) => {
     const currentState = get();
-    
+
     const prevState = currentState.cart;
-    
+
     set((state) => {
       const newCart = state.cart.map(item => {
         if (item.groupId === groupId) {
@@ -109,9 +134,9 @@ export const useOrderStore = create((set, get) => ({
 
   removeItem: (groupId) => {
     const currentState = get();
-    
+
     const prevState = currentState.cart;
-    
+
     set((state) => ({
       cart: state.cart.filter(item => item.groupId !== groupId),
       undoStack: [...state.undoStack, prevState].slice(-5)
@@ -119,35 +144,35 @@ export const useOrderStore = create((set, get) => ({
   },
 
   splitItem: (groupId) => {
-     const currentState = get();
+    const currentState = get();
 
-     const prevState = currentState.cart;
-     
-     set((state) => {
-       const existingItem = state.cart.find(i => i.groupId === groupId);
-       if (!existingItem || existingItem.qty <= 1) return state; // Nothing to split
+    const prevState = currentState.cart;
 
-       // Reduce original by 1
-       const itemReduced = { ...existingItem, qty: existingItem.qty - 1 };
-       
-       // Create new detached item with exact same group temporarily? 
-       // Wait, if it has the exact same group, future adds will just merge back into the old one.
-       // We should generate a unique ID to decouple it from grouping or leave it with same group 
-       // and just let it render distinctly until they change notes. 
-       // Actually, assigning it a unique ID as groupId forces split.
-       const detachedItem = { 
-         ...existingItem, 
-         qty: 1, 
-         id: uuidv4(), 
-         groupId: uuidv4() // Break grouping to ensure it stays split!
-       };
+    set((state) => {
+      const existingItem = state.cart.find(i => i.groupId === groupId);
+      if (!existingItem || existingItem.qty <= 1) return state; // Nothing to split
 
-       const newCart = state.cart.map(i => i.groupId === groupId ? itemReduced : i).concat(detachedItem);
+      // Reduce original by 1
+      const itemReduced = { ...existingItem, qty: existingItem.qty - 1 };
 
-       return { cart: newCart, undoStack: [...state.undoStack, prevState].slice(-5) };
-     });
+      // Create new detached item with exact same group temporarily? 
+      // Wait, if it has the exact same group, future adds will just merge back into the old one.
+      // We should generate a unique ID to decouple it from grouping or leave it with same group 
+      // and just let it render distinctly until they change notes. 
+      // Actually, assigning it a unique ID as groupId forces split.
+      const detachedItem = {
+        ...existingItem,
+        qty: 1,
+        id: uuidv4(),
+        groupId: uuidv4() // Break grouping to ensure it stays split!
+      };
+
+      const newCart = state.cart.map(i => i.groupId === groupId ? itemReduced : i).concat(detachedItem);
+
+      return { cart: newCart, undoStack: [...state.undoStack, prevState].slice(-5) };
+    });
   },
-  
+
   undoLastAction: () => {
     set((state) => {
       if (state.undoStack.length === 0 || state.lifecycle !== 'draft') return {};
@@ -158,14 +183,14 @@ export const useOrderStore = create((set, get) => ({
 
   // --- ACTIONS: LIFECYCLE ---
   clearOrder: () => {
-     set({
-       cart: [],
-       orderNote: '',
-       undoStack: [],
-       context: { type: null, tableId: null, delivery: null },
-       view: { isContextModalOpen: false, activeCategoryId: 'cat_all', searchQuery: '' },
-       lifecycle: 'draft'
-     });
+    set({
+      cart: [],
+      orderNote: '',
+      undoStack: [],
+      context: { type: null, tableId: null, delivery: null },
+      view: { isContextModalOpen: false, activeCategoryId: 'cat_all', activeDepartmentId: null, searchQuery: '' },
+      lifecycle: 'draft'
+    });
   },
 
   // --- ACTIONS: SERVER SYNC (Called natively by SignalR Event Handlers) ---
@@ -176,25 +201,67 @@ export const useOrderStore = create((set, get) => ({
 
   submitOrder: async (onSuccess) => {
     const state = get();
-    set({ lifecycle: 'sending' }); // Intermediate state for UI loading
+
+    // Validate before sending
+    if (state.cart.length === 0) {
+      console.warn('[Order] Cart is empty — aborting submission.');
+      return;
+    }
+
+    set({ lifecycle: 'sending' });
 
     try {
-      // Connect to WebSocket if not already connected
-      if (!orderSyncService.isConnected) orderSyncService.connect();
+      const payload = {
+        orderType: state.context.type === 'dine-in' ? 'dineIn' : (state.context.type || 'takeaway'),
+        tableId: state.context.type === 'dine-in' ? (state.context.tableId || null) : null,
+        note: state.orderNote || undefined,
+        items: state.cart.map(item => ({
+          menuItemId: item.productId || item.id,
+          quantity: item.qty || 1
+        }))
+      };
 
-      // Transmit the payload over the bridging service
-      await orderSyncService.sendOrder({
-        context: state.context,
-        cart: state.cart,
-        orderNote: state.orderNote
-      });
+      console.log('[Order] Submitting payload:', payload);
 
+      const result = await ordersService.create(payload);
+
+      console.log('[Order] Created successfully:', result);
+
+      // The API often returns a lean payload. Patch it with local data so the OrderCard renders correctly instantly.
+      const fullResult = {
+        ...result,
+        tableNumber: payload.tableId?.replace('T', ''),
+        notes: payload.note,
+        items: state.cart.map(i => ({
+          menuItemName: i.name || 'صنف',
+          quantity: i.qty || 1,
+          departmentName: i.product?.departmentName || '' // Critical for barista vs kitchen split
+        }))
+      };
+
+      // Auto-update table status to Occupied
+      if (payload.tableId) {
+        try {
+          await tablesService.updateStatus(payload.tableId, 'Occupied');
+        } catch (e) {
+          console.warn('[Order] Could not auto-update table status to Occupied:', e);
+        }
+      }
+
+      // Mark as sent first so UI shows success state briefly
       set({ lifecycle: 'sent', undoStack: [] });
-      if (onSuccess) onSuccess({ context: state.context, cart: state.cart, orderNote: state.orderNote }); // Fire callback with payload
-      get().clearOrder(); // Clean synchronously to prevent frozen state
+
+      // Trigger success callback (refetch + navigate) THEN clear cart
+      if (onSuccess) await onSuccess(fullResult);
+
+      // Clear cart after navigation is triggered
+      setTimeout(() => {
+        get().clearOrder();
+      }, 300);
+
     } catch (err) {
-      console.error('Order submission failed: ', err);
-      set({ lifecycle: 'draft' }); // Graceful Rollback
+      console.error('[Order] Submission failed:', err?.response?.data || err.message);
+      set({ lifecycle: 'draft' });
     }
   }
 }));

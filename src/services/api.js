@@ -7,9 +7,14 @@ import axios from 'axios';
 // ────────────────────────────────────────────────────────────────────────────
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
+  // Enforce relative path in development to use Vite proxy (which handles CORS and Localtunnel headers)
+  baseURL: import.meta.env.PROD && import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.startsWith('http') 
+    ? import.meta.env.VITE_API_BASE_URL 
+    : '/api/v1',
   timeout: 15_000,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 
+    'Content-Type': 'application/json'
+  },
 });
 
 // ── Unwrap Helper ───────────────────────────────────────────────────────────
@@ -18,13 +23,12 @@ const api = axios.create({
 // Otherwise returns the raw response as-is (backward compatible).
 // ────────────────────────────────────────────────────────────────────────────
 export function unwrap(axiosData) {
-  if (
-    axiosData &&
-    typeof axiosData === 'object' &&
-    'success' in axiosData &&
-    'data' in axiosData
-  ) {
-    return axiosData.data;
+  if (!axiosData) return axiosData;
+  if (axiosData && typeof axiosData === 'object') {
+    // Aggressively extract the inner 'data' if it's an envelope
+    if ('data' in axiosData && !Array.isArray(axiosData)) {
+      return axiosData.data;
+    }
   }
   return axiosData;
 }

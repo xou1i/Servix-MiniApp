@@ -33,8 +33,7 @@ export default function TableCard({ table }) {
     if (disabled) return;
 
     if (table.status === 'Available') {
-      // Start new order
-      setContext({ type: 'dine-in', tableId: table.id, delivery: null });
+      setContext({ type: 'dine-in', tableId: table.id, tableCode: table.tableNumber, delivery: null });
       navigate('/pos');
     } else if (table.status === 'Occupied') {
       // Open existing order - In a real app we might pass filter params to the orders page

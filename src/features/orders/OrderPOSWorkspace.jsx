@@ -1,3 +1,4 @@
+// OrderPOSWorkspace.jsx
 import { useEffect } from 'react';
 import CategorySidebar from './components/menu/CategorySidebar';
 import MenuBrowser from './components/menu/MenuBrowser';
@@ -20,7 +21,7 @@ export default function OrderPOSWorkspace({ roleKey }) {
       */}
 
       {/* Categories (Top in Mobile, Left visually in RTL Desktop/Tablet) */}
-      <div className="w-full md:w-[120px] lg:w-[130px] xl:w-[140px] shrink-0 h-auto md:h-full relative z-10 transition-all overflow-hidden bg-[#F8FAFC]">
+      <div className="w-full md:w-[150px] lg:w-[180px] xl:w-[200px] shrink-0 h-auto md:h-full relative z-10 transition-all overflow-hidden bg-[#F8FAFC]">
         <CategorySidebar roleKey={roleKey} />
       </div>
 

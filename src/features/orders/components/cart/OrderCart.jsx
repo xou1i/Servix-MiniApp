@@ -11,7 +11,7 @@ export default function OrderCart({ roleKey }) {
      cart, lifecycle, undoLastAction, undoStack, updateQuantity, removeItem, splitItem, 
      context, setContext, submitOrder, orderNote, setOrderNote, openContextModal
    } = useOrderStore();
-   const { addOrder, refetchOrders } = useAppState();
+   const { addNewOrderToState } = useAppState();
    const navigate = useNavigate();
    const [isPrinting, setIsPrinting] = useState(false);
 
@@ -21,9 +21,12 @@ export default function OrderCart({ roleKey }) {
      : context;
    
    
-   const total = cart.reduce((sum, item) => sum + (item.unitPrice * item.qty) + (item.modifiers?.reduce((mSum, m) => mSum + (m.priceAdjust || 0), 0) * item.qty || 0), 0);
-   const tax = total * 0.15; // 15% VAT Mock
-   const grandTotal = total + tax;
+   const total = cart.reduce((sum, item) => {
+     const itemPrice = Number(item.unitPrice) || 0;
+     const modPrice = (item.modifiers?.reduce((mSum, m) => mSum + (Number(m.priceAdjust) || 0), 0) || 0);
+     return sum + ((itemPrice + modPrice) * (item.qty || 1));
+   }, 0);
+   const grandTotal = total;
 
    const handlePrintCart = () => {
      setIsPrinting(true);
@@ -51,7 +54,7 @@ export default function OrderCart({ roleKey }) {
             {roleKey !== 'waiter' && (
               <div className="flex bg-white rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] p-1 w-full relative">
                  <button 
-                   onClick={() => setContext({ type: 'dine-in', tableId: null, delivery: null })}
+                   onClick={() => setContext({ type: 'dine-in', tableId: null, tableCode: null, delivery: null })}
                    className={`flex-1 py-1.5 flex items-center justify-center gap-1.5 rounded-lg text-[11px] font-bold transition-all ${
                      context.type === 'dine-in' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--surface-low)] hover:text-[var(--text-secondary)]'
                    }`}
@@ -60,7 +63,7 @@ export default function OrderCart({ roleKey }) {
                  </button>
                  
                  <button 
-                   onClick={() => setContext({ type: 'takeaway', tableId: null, delivery: null })}
+                   onClick={() => setContext({ type: 'takeaway', tableId: null, tableCode: null, delivery: null })}
                    className={`flex-1 py-1.5 flex items-center justify-center gap-1.5 rounded-lg text-[11px] font-bold transition-all ${
                      context.type === 'takeaway' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--surface-low)] hover:text-[var(--text-secondary)]'
                    }`}
@@ -69,7 +72,7 @@ export default function OrderCart({ roleKey }) {
                  </button>
 
                  <button 
-                   onClick={() => setContext({ type: 'delivery', tableId: null, delivery: null })}
+                   onClick={() => setContext({ type: 'delivery', tableId: null, tableCode: null, delivery: null })}
                    className={`flex-1 py-1.5 flex items-center justify-center gap-1.5 rounded-lg text-[11px] font-bold transition-all ${
                      context.type === 'delivery' ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-[var(--text-muted)] hover:bg-[var(--surface-low)] hover:text-[var(--text-secondary)]'
                    }`}
@@ -87,7 +90,7 @@ export default function OrderCart({ roleKey }) {
                      onClick={() => openContextModal()}
                      className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold border border-emerald-200 rounded-lg px-3 py-1.5 outline-none cursor-pointer transition-all shadow-sm flex items-center gap-1"
                    >
-                     {context.tableId ? `T${context.tableId.replace('T','')}` : <><Map size={14} /> الخريطة</>}
+                     {context.tableId ? `[T${context.tableCode || context.tableId.split('-')[0]}]` : <><Map size={14} /> الخريطة</>}
                    </button>
                </div>
             )}
@@ -100,21 +103,21 @@ export default function OrderCart({ roleKey }) {
                    placeholder="رقم الجوال"
                    className="w-full bg-white border border-[var(--surface-high)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--color-primary)] transition-all text-right"
                    value={context.delivery?.phone || ''}
-                   onChange={(e) => setContext({ type: 'delivery', tableId: null, delivery: { ...context.delivery, phone: e.target.value } })}
+                   onChange={(e) => setContext({ type: 'delivery', tableId: null, tableCode: null, delivery: { ...context.delivery, phone: e.target.value } })}
                  />
                  <input
                    type="text"
                    placeholder="اسم العميل"
                    className="w-full bg-white border border-[var(--surface-high)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--color-primary)] transition-all text-right"
                    value={context.delivery?.name || ''}
-                   onChange={(e) => setContext({ type: 'delivery', tableId: null, delivery: { ...context.delivery, name: e.target.value } })}
+                   onChange={(e) => setContext({ type: 'delivery', tableId: null, tableCode: null, delivery: { ...context.delivery, name: e.target.value } })}
                  />
                  <input
                    type="text"
                    placeholder="العنوان"
                    className="w-full bg-white border border-[var(--surface-high)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--color-primary)] transition-all text-right"
                    value={context.delivery?.address || ''}
-                   onChange={(e) => setContext({ type: 'delivery', tableId: null, delivery: { ...context.delivery, address: e.target.value } })}
+                   onChange={(e) => setContext({ type: 'delivery', tableId: null, tableCode: null, delivery: { ...context.delivery, address: e.target.value } })}
                  />
                  <div className="flex gap-2 text-[10px] text-[var(--text-muted)] font-bold px-1">
                     <Phone size={12} /> <User size={12} /> <MapPin size={12} />
@@ -210,12 +213,8 @@ export default function OrderCart({ roleKey }) {
          
          <div className="space-y-2 mb-4 px-1">
            <div className="flex justify-between items-center text-xs font-bold text-[var(--text-secondary)]">
-              <span>المجموع الفرعي</span>
+              <span>المجموع</span>
               <span>{formatIQD(total)}</span>
-           </div>
-           <div className="flex justify-between items-center text-xs font-bold text-[var(--text-secondary)]">
-              <span>الضريبة (15%)</span>
-              <span>{formatIQD(tax)}</span>
            </div>
            <div className="h-px bg-[var(--surface-mid)] my-2 w-full"></div>
             <div className="flex justify-between items-center">
@@ -237,16 +236,12 @@ export default function OrderCart({ roleKey }) {
          
          <div className="flex gap-2">
            <button 
-             onClick={() => submitOrder(({ cart: submittedCart, context: submittedContext, orderNote: submittedOrderNote }) => {
-                // Fetch fresh lists
-                const appState = useAppState.getState ? useAppState.getState() : null;
-                // Since useAppState is typically a context hook, we should destructure it at the component top.
-                // Wait, useAppState is a context? It's destructured at line 14: const { addOrder, refetchOrders } = useAppState();
-                if (refetchOrders) refetchOrders();
-                else if (addOrder) addOrder();
-                
-                navigate('/orders');
-             })}
+             onClick={async () => {
+                await submitOrder(async (result) => {
+                  if (result) addNewOrderToState(result);
+                  navigate('/orders');
+                });
+             }}
              disabled={cart.length === 0 || lifecycle === 'sending' || lifecycle === 'sent' || !effectiveContext.type}
              className={`flex-1 btn-primary py-4 text-[15px] rounded-2xl justify-center shadow-lg transition-all ${
                (cart.length === 0 || !effectiveContext.type) ? 'opacity-50 cursor-not-allowed shadow-none' : 

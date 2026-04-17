@@ -1,3 +1,4 @@
+// OrdersPage.jsx
 import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import OrderGrid from '../components/orders/OrderGrid';
@@ -8,6 +9,7 @@ import { filterOrders, resolveDepartmentScope } from '../utils/orderFilters';
 import { ROLES } from '../constants/roles';
 import { ORDER_STATUS } from '../utils/status';
 
+// Orders that move to History/Archive (not shown on main page)
 const COMPLETED_STATUSES = [ORDER_STATUS.served, ORDER_STATUS.billed, ORDER_STATUS.paid, ORDER_STATUS.cancelled];
 
 function OrdersPage({ roleKey }) {
@@ -18,7 +20,7 @@ function OrdersPage({ roleKey }) {
 
   const departmentKey = useMemo(() => resolveDepartmentScope(roleKey, 'auto'), [roleKey]);
 
-  // Filter out completed orders (they belong in History)
+  // Filter out completed/cancelled orders (they belong in History)
   const activeOrders = useMemo(
     () => orders.filter((o) => !COMPLETED_STATUSES.includes(o.status)),
     [orders],

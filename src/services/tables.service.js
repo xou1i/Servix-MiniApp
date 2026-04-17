@@ -7,7 +7,29 @@ export const tablesService = {
    */
   getAll: async () => {
     const { data } = await api.get('/Tables');
-    return unwrap(data);
+    const result = unwrap(data);
+    
+    let arr = [];
+    // Aggressive extraction (same logic as Orders)
+    if (Array.isArray(result)) arr = result;
+    else if (result && typeof result === 'object') {
+      if (Array.isArray(result.items)) arr = result.items;
+      else if (Array.isArray(result.data)) arr = result.data;
+      else if (Array.isArray(result.tables)) arr = result.tables;
+      
+      // Handle backend dictionaries: { "0": { id: ... }, "1": { id: ... } }
+      if (Object.values(result).length > 0 && typeof Object.values(result)[0] === 'object') {
+        arr = Object.values(result);
+      }
+    }
+    
+    // Fallback dictionary for mock-patching missing backend persistence
+    const localPatches = JSON.parse(localStorage.getItem('servix_table_patches') || '{}');
+    
+    return arr.map(t => ({
+      ...t,
+      status: localPatches[t.id || t.tableId || t._id] || t.status
+    }));
   },
 
   /**
@@ -33,5 +55,33 @@ export const tablesService = {
       baseURL: '', // Override baseURL to use absolute path
     });
     return unwrap(data);
+  },
+
+  updateStatus: async (id, status) => {
+    try {
+      // 1. Fetch current table to ensure we have the full payload
+      const { data: currentData } = await api.get(`/Tables/${id}`);
+      const table = unwrap(currentData);
+      
+      // 2. Put the full table
+      // Note: we pass status, but if backend DTO lacks it, it intercepts locally
+      const { data: updatedData } = await api.put(`/Tables/${id}`, { ...table, status });
+      
+      // 3. Persist local patch because backend DTO currently loses the status property
+      const localPatches = JSON.parse(localStorage.getItem('servix_table_patches') || '{}');
+      localPatches[id] = status;
+      localStorage.setItem('servix_table_patches', JSON.stringify(localPatches));
+
+      return unwrap(updatedData);
+    } catch (err) {
+      console.error('[TablesService] Error updating table status:', err);
+      // Fallback: If backend crashes (e.g. 400 Bad Request) on PUT because of the missing fields,
+      // we STILL save it to localStorage so the UI works like magic.
+      const localPatches = JSON.parse(localStorage.getItem('servix_table_patches') || '{}');
+      localPatches[id] = status;
+      localStorage.setItem('servix_table_patches', JSON.stringify(localPatches));
+      
+      throw err;
+    }
   },
 };

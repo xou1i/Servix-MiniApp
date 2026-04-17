@@ -1,3 +1,4 @@
+// menu.service.js
 import api, { unwrap } from './api';
 
 export const menuService = {
@@ -20,5 +21,21 @@ export const menuService = {
     const { data } = await api.get(`/Menu/category/${categoryId}`);
     const result = unwrap(data);
     return Array.isArray(result) ? result : [];
+  },
+
+  /**
+   * GET /api/v1/Departments
+   */
+  getDepartments: async () => {
+    const { data } = await api.get('/Departments');
+    return unwrap(data);
+  },
+
+  /**
+   * GET /api/v1/Categories
+   */
+  getCategories: async () => {
+    const { data } = await api.get('/Categories');
+    return unwrap(data);
   },
 };

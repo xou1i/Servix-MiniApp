@@ -15,23 +15,69 @@ export default function OrderContextModal() {
   const [loading,   setLoading]   = useState(true);
   const [activeZone, setActiveZone] = useState('الصالة الرئيسية');
 
+  // ── Edit Mode State ──
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
+
   useEffect(() => {
     if (!view.isContextModalOpen) return;
     if (context.type === 'delivery') return;
     setLoading(true);
     tablesService.getAll()
-      .then(data => { setTables(data); setLoading(false); })
+      .then(data => {
+        const normalized = (Array.isArray(data) ? data : []).map(t => ({
+          ...t,
+          id: t.id || t.tableId || t.code || t._id,
+          tableNumber: t.tableNumber ?? t.number ?? t.name ?? '?',
+          status: t.status ? t.status.charAt(0).toUpperCase() + t.status.slice(1).toLowerCase() : 'Available',
+          shape: t.shape ?? (t.capacity >= 6 ? 'rectangle' : t.capacity <= 2 ? 'circle' : 'square'),
+          capacity: t.capacity ?? t.seatsCount ?? 4,
+          isOrderingEnabled: t.isOrderingEnabled !== false,
+        })).sort((a,b) => {
+          const nA = parseInt((a.tableNumber || '').toString().replace(/\D/g, '')) || 0;
+          const nB = parseInt((b.tableNumber || '').toString().replace(/\D/g, '')) || 0;
+          return nA - nB || (a.tableNumber || '').toString().localeCompare((b.tableNumber || '').toString());
+        });
+        setTables(normalized);
+        setLoading(false);
+      })
       .catch(err => { console.error('Failed to load tables:', err); setLoading(false); });
   }, [view.isContextModalOpen, context.type]);
 
   if (!view.isContextModalOpen) return null;
 
   const handleTableClick = (table) => {
+    if (isEditMode) {
+      const TABLE_STATUSES = ['Available', 'Occupied', 'Reserved', 'Maintenance'];
+      const currentStatus = pendingChanges[table.id] || table.status;
+      let nextIndex = TABLE_STATUSES.indexOf(currentStatus) + 1;
+      if (nextIndex >= TABLE_STATUSES.length) nextIndex = 0;
+      setPendingChanges(prev => ({ ...prev, [table.id]: TABLE_STATUSES[nextIndex] }));
+      return;
+    }
+
     if (!table.isOrderingEnabled) return;
-    // In modal we only select available tables for new orders (occupied handled from orders page)
+    // In modal we only select available tables for new orders
     if (table.status === 'Available') {
-      setContext({ type: 'dine-in', tableId: table.id, delivery: null });
+      setContext({ type: 'dine-in', tableId: table.id, tableCode: table.tableNumber, delivery: null });
       // setContext already closes modal via reducer
+    }
+  };
+
+  const handleSaveEdits = async () => {
+    if (Object.keys(pendingChanges).length === 0) { setIsEditMode(false); return; }
+    setIsSaving(true);
+    try {
+      await Promise.all(Object.entries(pendingChanges).map(([id, st]) => tablesService.updateStatus(id, st)));
+      setTables(prev => prev.map(t => pendingChanges[t.id] ? { ...t, status: pendingChanges[t.id] } : t));
+      setPendingChanges({});
+      setIsEditMode(false);
+    } catch (err) {
+      console.error('Save failed:', err);
+      // Optional fallback fetch here
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -46,11 +92,18 @@ export default function OrderContextModal() {
     setContext({
       type: 'delivery',
       tableId: null,
+      tableCode: null,
       delivery: { phone: fd.get('phone'), name: fd.get('name'), address: fd.get('address') },
     });
   };
 
-  const zoneTables = tables.filter(t => t.zone === activeZone);
+  const zoneTables = tables.filter(t => {
+    const loc = (t.location || t.zone || '').toLowerCase();
+    if (activeZone === 'الصالة الرئيسية') return loc.includes('main') || loc.includes('رئيسية');
+    if (activeZone === 'قاعة VIP')        return loc.includes('vip');
+    if (activeZone === 'الخارجي')         return loc.includes('outdoor') || loc.includes('خارج');
+    return true;
+  });
 
   return (
     <div
@@ -84,22 +137,53 @@ export default function OrderContextModal() {
           {context.type !== 'delivery' && (
             <div className="flex flex-col">
 
-              {/* Zone tabs */}
-              <div className="flex gap-6 border-b border-slate-200 px-7 shrink-0">
-                {ZONES.map(zone => (
-                  <button
-                    key={zone}
-                    onClick={() => setActiveZone(zone)}
-                    className={`py-3 text-sm font-bold transition-colors relative whitespace-nowrap ${
-                      activeZone === zone ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
-                    }`}
-                  >
-                    {zone}
-                    {activeZone === zone && (
-                      <span className="absolute bottom-0 left-0 right-0 h-[3px] bg-slate-900 rounded-t-full" />
-                    )}
-                  </button>
-                ))}
+              {/* Zone tabs & Toolbar */}
+              <div className="flex items-center justify-between border-b border-slate-200 px-7 shrink-0">
+                <div className="flex gap-6">
+                  {ZONES.map(zone => (
+                    <button
+                      key={zone}
+                      onClick={() => setActiveZone(zone)}
+                      className={`py-3 text-sm font-bold transition-colors relative whitespace-nowrap ${
+                        activeZone === zone ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
+                      }`}
+                    >
+                      {zone}
+                      {activeZone === zone && (
+                        <span className="absolute bottom-0 left-0 right-0 h-[3px] bg-slate-900 rounded-t-full" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Edit Mode Toolbar */}
+                <div className="flex py-2">
+                  {!isEditMode ? (
+                    <button 
+                      onClick={() => setIsEditMode(true)} 
+                      className="bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shadow-sm flex items-center"
+                    >
+                      تغيير حالة الطاولات
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => { setIsEditMode(false); setPendingChanges({}); }} 
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                        disabled={isSaving}
+                      >
+                        إلغاء التعديل
+                      </button>
+                      <button 
+                        onClick={handleSaveEdits} 
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors shadow-sm shadow-emerald-500/20"
+                        disabled={isSaving}
+                      >
+                        {isSaving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Map canvas — scrollable both axes */}
@@ -138,13 +222,23 @@ export default function OrderContextModal() {
                         className="grid"
                         style={{ gridTemplateColumns: 'repeat(7, minmax(120px, 1fr))', gap: '8px 0' }}
                       >
-                        {zoneTables.map(table => (
-                          <TableSpot
-                            key={table.id}
-                            table={table}
-                            onClick={() => handleTableClick(table)}
-                          />
-                        ))}
+                        {zoneTables.map(table => {
+                          const isPending = !!pendingChanges[table.id];
+                          const displayStatus = pendingChanges[table.id] || table.status;
+                          const displayTable = { ...table, status: displayStatus };
+                          
+                          return (
+                            <div key={table.id} className="relative group">
+                              {isPending && (
+                                <span className="absolute top-1 right-1 z-50 w-3 h-3 bg-amber-500 rounded-full border-2 border-white animate-pulse" title="تغيير غير محفوظ" />
+                              )}
+                              <TableSpot
+                                table={displayTable}
+                                onClick={() => handleTableClick(table)}
+                              />
+                            </div>
+                          );
+                        })}
                       </div>
                       {zoneTables.length === 0 && (
                         <div className="flex items-center justify-center py-20 text-slate-400 font-bold">
