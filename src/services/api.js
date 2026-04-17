@@ -8,9 +8,9 @@ import axios from 'axios';
 
 const api = axios.create({
   // Enforce relative path in development to use Vite proxy (which handles CORS and Localtunnel headers)
-  baseURL: import.meta.env.PROD && import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.startsWith('http') 
+  baseURL: import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.startsWith('http') 
     ? import.meta.env.VITE_API_BASE_URL 
-    : '/api/v1',
+    : 'https://restaurantsystem-oe83.onrender.com/api/v1',
   timeout: 15_000,
   headers: { 
     'Content-Type': 'application/json'

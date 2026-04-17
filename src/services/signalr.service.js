@@ -18,16 +18,7 @@ let connection = null;
  * In production, we use the full backend origin.
  */
 function getHubUrl() {
-  if (!import.meta.env.PROD) {
-    // In dev mode, ALWAYS use relative path to route through Vite proxy
-    // allowing proxy to bypass Localtunnel warnings securely.
-    return '/orderHub';
-  }
-  
-  const backendOrigin = import.meta.env.VITE_BACKEND_ORIGIN || '';
-  if (!backendOrigin || import.meta.env.VITE_API_BASE_URL?.startsWith('/')) {
-    return '/orderHub';
-  }
+  const backendOrigin = import.meta.env.VITE_BACKEND_ORIGIN || 'https://restaurantsystem-oe83.onrender.com';
   return `${backendOrigin}/orderHub`;
 }
 

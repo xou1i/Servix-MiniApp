@@ -13,7 +13,7 @@ export default defineConfig({
     // Vite forwards them to the actual backend (localtunnel or direct).
     proxy: {
       '/api': {
-        target: process.env.VITE_BACKEND_ORIGIN || 'https://itchy-pugs-try.loca.lt',
+        target: process.env.VITE_BACKEND_ORIGIN || 'https://restaurantsystem-oe83.onrender.com',
         changeOrigin: true,
         secure: false,
         headers: {
@@ -23,7 +23,7 @@ export default defineConfig({
       },
       // SignalR WebSocket hub
       '/orderHub': {
-        target: process.env.VITE_BACKEND_ORIGIN || 'https://itchy-pugs-try.loca.lt',
+        target: process.env.VITE_BACKEND_ORIGIN || 'https://restaurantsystem-oe83.onrender.com',
         changeOrigin: true,
         secure: false,
         ws: true,
