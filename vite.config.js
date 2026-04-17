@@ -13,16 +13,24 @@ export default defineConfig({
     // Vite forwards them to the actual backend (localtunnel or direct).
     proxy: {
       '/api': {
-        target: process.env.VITE_BACKEND_ORIGIN || 'https://purple-bobcats-tie.loca.lt',
+        target: process.env.VITE_BACKEND_ORIGIN || 'https://shaggy-singers-clap.loca.lt',
         changeOrigin: true,
         secure: false,
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'ngrok-skip-browser-warning': 'true'
+        }
       },
       // SignalR WebSocket hub
       '/orderHub': {
-        target: process.env.VITE_BACKEND_ORIGIN || 'https://purple-bobcats-tie.loca.lt',
+        target: process.env.VITE_BACKEND_ORIGIN || 'https://shaggy-singers-clap.loca.lt',
         changeOrigin: true,
         secure: false,
         ws: true,
+        headers: {
+          'Bypass-Tunnel-Reminder': 'true',
+          'ngrok-skip-browser-warning': 'true'
+        }
       },
     },
   },
