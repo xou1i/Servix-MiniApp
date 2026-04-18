@@ -228,7 +228,13 @@ export const useOrderStore = create((set, get) => ({
           menuItemId: item.productId || item.id,
           quantity: item.qty || 1,
           specialInstructions: item.notes || ''
-        }))
+        })),
+        // Delivery fields — required by Render backend for Delivery orders
+        deliveryAddress: state.context.delivery?.address || '',
+        customerPhoneNumber: state.context.delivery?.phone || '',
+        deliveryFee: 0,
+        latitude: 0,
+        longitude: 0,
       };
 
       console.log('[Order] Submitting payload to Swagger DTO:', payload);
