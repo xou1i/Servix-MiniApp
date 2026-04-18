@@ -64,9 +64,11 @@ export { ERROR_TYPES };
 // ── Request Interceptor ─────────────────────────────────────────────────────
 api.interceptors.request.use(
   (config) => {
-    // 1. Attach Token
+    // 1. Attach Token (Skip for login)
     const token = localStorage.getItem('servix_token');
-    if (token) {
+    const isLogin = config.url && config.url.includes('/Auth/login');
+    
+    if (token && !isLogin) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
@@ -99,10 +101,7 @@ api.interceptors.response.use(
     if (import.meta.env.DEV) {
       const status = err.response?.status || 'NETWORK';
       const data = err.response?.data || {};
-      console.warn(`[API] ❌ ${status} ${err.config?.url}`, {
-        message: err.message,
-        serverData: data
-      });
+      console.error(`[API ❌ ${status}] ${err.config?.url}`, data);
     }
 
     if (err.response?.status === 401) {

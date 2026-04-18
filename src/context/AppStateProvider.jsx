@@ -82,6 +82,9 @@ export function AppStateProvider({ children }) {
   const currentRole = storedUser?.role?.toLowerCase() ?? '';
 
   const refetchOrders = useCallback(() => {
+    const token = authService.getToken();
+    if (!token) return Promise.resolve(); // Don't fetch if not logged in
+
     return ordersService.getAll()
       .then(apiOrders => {
         if (Array.isArray(apiOrders)) {
@@ -90,7 +93,9 @@ export function AppStateProvider({ children }) {
         }
       })
       .catch(err => {
-        console.warn('[AppState] Failed to fetch orders:', err.message);
+        if (err.response?.status !== 401) { // Hide 401s during initial load
+          console.warn('[AppState] Failed to fetch orders:', err.message);
+        }
       });
   }, []);
 

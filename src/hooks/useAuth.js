@@ -38,18 +38,15 @@ export function useAuth() {
       const returnedRole = loginUser?.role?.toLowerCase();
       if (returnedRole !== selectedRole.toLowerCase()) {
         authService.logout(); // Clean up token
-        const mismatchMsg = `الدور المحدد (${selectedRole}) لا يتطابق مع دورك الفعلي (${loginUser.role})`;
+        const mismatchMsg = `الدور المحدد (${selectedRole}) لا يتطابق مع دورك الفعلي (${loginUser?.role || 'غير معروف'})`;
         setError(mismatchMsg);
         setErrorType('ROLE_MISMATCH');
         throw new Error(mismatchMsg);
       }
 
-      // 3. GET /api/v1/Auth/me → full profile (with Authorization: Bearer token)
-      const me = await authService.getCurrentUser();
-
-      // 4. Persist and set
-      authService.persistUser(me);
-      setUser(me);
+      // 3. Persist and set (Use loginUser directly as it contains all needed info)
+      authService.persistUser(loginUser);
+      setUser(loginUser);
     } catch (err) {
       // If we already set a specific error (like role mismatch), don't overwrite
       if (!error) {
