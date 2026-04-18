@@ -7,13 +7,8 @@ import axios from 'axios';
 // ────────────────────────────────────────────────────────────────────────────
 
 const api = axios.create({
-  // In development, use relative path to trigger Vite proxy.
-  // In production, use the absolute URL from .env.
-  baseURL: import.meta.env.DEV 
-    ? '/api/v1' 
-    : (import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.startsWith('http')
-        ? import.meta.env.VITE_API_BASE_URL
-        : 'https://restaurantsystem-oe83.onrender.com/api/v1'),
+  // Use root in dev to trigger proxy, or full origin in prod
+  baseURL: import.meta.env.DEV ? '' : (import.meta.env.VITE_BACKEND_ORIGIN || 'https://restaurantsystem-oe83.onrender.com'),
   timeout: 15_000,
   headers: {
     'Content-Type': 'application/json'
@@ -21,14 +16,9 @@ const api = axios.create({
 });
 
 // ── Unwrap Helper ───────────────────────────────────────────────────────────
-// Backend uses standard envelope: { success, message, data, errors }
-// This helper extracts the inner `data` if the envelope is present,
-// Otherwise returns the raw response as-is (backward compatible).
-// ────────────────────────────────────────────────────────────────────────────
 export function unwrap(axiosData) {
   if (!axiosData) return axiosData;
   if (axiosData && typeof axiosData === 'object') {
-    // Aggressively extract the inner 'data' if it's an envelope
     if ('data' in axiosData && !Array.isArray(axiosData)) {
       return axiosData.data;
     }
@@ -37,8 +27,6 @@ export function unwrap(axiosData) {
 }
 
 // ── Error Classification ────────────────────────────────────────────────────
-// Returns a structured error object for UI consumption.
-// ────────────────────────────────────────────────────────────────────────────
 const ERROR_TYPES = {
   AUTH_EXPIRED: 'AUTH_EXPIRED',
   FORBIDDEN: 'FORBIDDEN',
@@ -52,117 +40,46 @@ const ERROR_TYPES = {
 };
 
 export function classifyError(error) {
-  // Axios timeout
   if (error.code === 'ECONNABORTED') {
-    return {
-      type: ERROR_TYPES.TIMEOUT,
-      status: null,
-      message: 'Request timed out. Please try again.',
-      messageAr: 'انتهت مهلة الطلب. حاول مرة أخرى.',
-      retryable: true,
-    };
+    return { type: ERROR_TYPES.TIMEOUT, status: null, message: 'Request timed out.', messageAr: 'انتهت مهلة الطلب.', retryable: true };
   }
-
-  // No response at all — network / tunnel dead
   if (!error.response) {
-    return {
-      type: ERROR_TYPES.NETWORK_ERROR,
-      status: null,
-      message: 'Network error. Check your connection or the server may be down.',
-      messageAr: 'خطأ في الشبكة. تحقق من الاتصال أو قد يكون السيرفر معطل.',
-      retryable: true,
-    };
+    return { type: ERROR_TYPES.NETWORK_ERROR, status: null, message: 'Network error.', messageAr: 'خطأ في الشبكة.', retryable: true };
   }
 
   const status = error.response.status;
   const serverMessage = error.response?.data?.message || '';
 
   switch (status) {
-    case 400:
-      return {
-        type: ERROR_TYPES.VALIDATION,
-        status,
-        message: serverMessage || 'Invalid request. Please check your input.',
-        messageAr: serverMessage || 'طلب غير صالح. تحقق من المدخلات.',
-        retryable: false,
-      };
-    case 401:
-      return {
-        type: ERROR_TYPES.AUTH_EXPIRED,
-        status,
-        message: 'Session expired. Please log in again.',
-        messageAr: 'انتهت الجلسة. سجل الدخول مرة أخرى.',
-        retryable: false,
-      };
-    case 403:
-      return {
-        type: ERROR_TYPES.FORBIDDEN,
-        status,
-        message: 'You do not have permission to perform this action.',
-        messageAr: 'ليس لديك صلاحية لتنفيذ هذا الإجراء.',
-        retryable: false,
-      };
-    case 404:
-      return {
-        type: ERROR_TYPES.NOT_FOUND,
-        status,
-        message: serverMessage || 'Resource not found.',
-        messageAr: serverMessage || 'المورد غير موجود.',
-        retryable: false,
-      };
-    case 502:
-    case 503:
-      return {
-        type: ERROR_TYPES.GATEWAY_ERROR,
-        status,
-        message: 'Server is temporarily unavailable. Retrying...',
-        messageAr: 'السيرفر غير متاح مؤقتاً. جاري إعادة المحاولة...',
-        retryable: true,
-      };
-    default:
-      if (status >= 500) {
-        return {
-          type: ERROR_TYPES.SERVER_ERROR,
-          status,
-          message: serverMessage || 'Server error. Please try again later.',
-          messageAr: serverMessage || 'خطأ في السيرفر. حاول مرة أخرى لاحقاً.',
-          retryable: false,
-        };
-      }
-      return {
-        type: ERROR_TYPES.UNKNOWN,
-        status,
-        message: serverMessage || 'An unexpected error occurred.',
-        messageAr: serverMessage || 'حدث خطأ غير متوقع.',
-        retryable: false,
-      };
+    case 400: return { type: ERROR_TYPES.VALIDATION, status, message: serverMessage || 'Invalid request.', messageAr: serverMessage || 'طلب غير صالح.', retryable: false };
+    case 401: return { type: ERROR_TYPES.AUTH_EXPIRED, status, message: 'Session expired.', messageAr: 'انتهت الجلسة.', retryable: false };
+    case 403: return { type: ERROR_TYPES.FORBIDDEN, status, message: 'Forbidden.', messageAr: 'غير مسموح.', retryable: false };
+    case 404: return { type: ERROR_TYPES.NOT_FOUND, status, message: 'Not found.', messageAr: 'غير موجود.', retryable: false };
+    default: return { type: ERROR_TYPES.UNKNOWN, status, message: 'Error occurred.', messageAr: 'حدث خطأ.', retryable: false };
   }
 }
 
 export { ERROR_TYPES };
 
-// ── Request Interceptor: attach JWT + URL safety ────────────────────────────
+// ── Request Interceptor ─────────────────────────────────────────────────────
 api.interceptors.request.use(
   (config) => {
-    // 1. Attach JWT
+    // 1. Attach Token
     const token = localStorage.getItem('servix_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // 2. URL safety — ensure /api/v1 prefix when using relative paths
-    //    Skip if the URL is already absolute (starts with http)
+    // 2. Build URL: ensure it starts with /api/v1 if it's a relative path
     if (config.url && !config.url.startsWith('http')) {
-      const fullUrl = (config.baseURL || '') + config.url;
-      if (!fullUrl.includes('/api/v1') && !fullUrl.includes('/api/public')) {
-        // If baseURL doesn't contain /api/v1, prepend it to the path
+      // If it doesn't already contain /api/v1 or /api/public, prepend /api/v1
+      if (!config.url.includes('/api/v1') && !config.url.includes('/api/public')) {
         config.url = `/api/v1${config.url.startsWith('/') ? '' : '/'}${config.url}`;
       }
     }
 
-    // 3. Dev logging
     if (import.meta.env.DEV) {
-      console.log(`[API] ➡️ ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+      console.log(`[API] ➡️ ${config.method?.toUpperCase()} ${config.url}`, config.data || '');
     }
 
     return config;
@@ -181,7 +98,11 @@ api.interceptors.response.use(
   (err) => {
     if (import.meta.env.DEV) {
       const status = err.response?.status || 'NETWORK';
-      console.warn(`[API] ❌ ${status} ${err.config?.url}`, err.message);
+      const data = err.response?.data || {};
+      console.warn(`[API] ❌ ${status} ${err.config?.url}`, {
+        message: err.message,
+        serverData: data
+      });
     }
 
     if (err.response?.status === 401) {

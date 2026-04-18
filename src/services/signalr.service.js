@@ -18,6 +18,7 @@ let connection = null;
  * In production, we use the full backend origin.
  */
 function getHubUrl() {
+  if (import.meta.env.DEV) return '/orderHub';
   const backendOrigin = import.meta.env.VITE_BACKEND_ORIGIN || 'https://restaurantsystem-oe83.onrender.com';
   return `${backendOrigin}/orderHub`;
 }
