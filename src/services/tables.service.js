@@ -26,10 +26,14 @@ export const tablesService = {
     // Fallback dictionary for mock-patching missing backend persistence
     const localPatches = JSON.parse(localStorage.getItem('servix_table_patches') || '{}');
     
-    return arr.map(t => ({
-      ...t,
-      status: localPatches[t.id || t.tableId || t._id] || t.status
-    }));
+    return arr.map(t => {
+      const status = localPatches[t.id || t.tableId || t._id] || t.status || (t.isAvailable ? 'Available' : 'Occupied');
+      return {
+        ...t,
+        status: status,
+        isAvailable: status === 'Available'
+      };
+    });
   },
 
   /**
@@ -64,8 +68,9 @@ export const tablesService = {
       const table = unwrap(currentData);
       
       // 2. Put the full table
-      // Note: we pass status, but if backend DTO lacks it, it intercepts locally
-      const { data: updatedData } = await api.put(`/Tables/${id}`, { ...table, status });
+      // Note: we pass status AND isAvailable to align with backend GUID
+      const isAvailable = status === 'Available';
+      const { data: updatedData } = await api.put(`/Tables/${id}`, { ...table, status, isAvailable });
       
       // 3. Persist local patch because backend DTO currently loses the status property
       const localPatches = JSON.parse(localStorage.getItem('servix_table_patches') || '{}');

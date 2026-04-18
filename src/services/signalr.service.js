@@ -129,8 +129,11 @@ export function getConnectionState() {
 
 // ── SignalR Event Names (constants to avoid typos) ──────────────────────────
 export const SIGNALR_EVENTS = {
-  NEW_ORDER_PLACED: 'NewOrderPlaced',
-  ORDER_STATUS_CHANGED: 'OrderStatusChanged',
+  NEW_ORDER_CREATED: 'NewOrderCreated',
+  ORDER_STATUS_UPDATED: 'OrderStatusUpdated',
+  ORDER_DELETED: 'OrderDeleted',
+  ORDER_ITEM_ADDED: 'OrderItemAdded',
+  ORDER_ITEM_REMOVED: 'OrderItemRemoved',
   NEW_ITEMS_TO_PREPARE: 'NewItemsToPrepare',
   MY_ORDER_STATUS_UPDATE: 'MyOrderStatusUpdate',
 };

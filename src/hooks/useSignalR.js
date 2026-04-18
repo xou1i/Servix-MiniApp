@@ -52,12 +52,12 @@ export function useSignalR({ role, onNewOrder, onStatusChanged, onNewItems, onMy
 
     // ── Event handlers (wrapped to use latest refs) ────────────────────
     const handleNewOrder = (data) => {
-      if (import.meta.env.DEV) console.log('[SignalR] 📦 NewOrderPlaced:', data);
+      if (import.meta.env.DEV) console.log('[SignalR] 📦 NewOrderCreated:', data);
       onNewOrderRef.current?.(data);
     };
 
     const handleStatusChanged = (data) => {
-      if (import.meta.env.DEV) console.log('[SignalR] 🔄 OrderStatusChanged:', data);
+      if (import.meta.env.DEV) console.log('[SignalR] 🔄 OrderStatusUpdated:', data);
       onStatusChangedRef.current?.(data);
     };
 
@@ -73,8 +73,8 @@ export function useSignalR({ role, onNewOrder, onStatusChanged, onNewItems, onMy
 
     // ── Subscribe based on role ────────────────────────────────────────
     // All roles get new orders and status changes
-    onEvent(SIGNALR_EVENTS.NEW_ORDER_PLACED, handleNewOrder);
-    onEvent(SIGNALR_EVENTS.ORDER_STATUS_CHANGED, handleStatusChanged);
+    onEvent(SIGNALR_EVENTS.NEW_ORDER_CREATED, handleNewOrder);
+    onEvent(SIGNALR_EVENTS.ORDER_STATUS_UPDATED, handleStatusChanged);
 
     // Chef/Barista get new items to prepare
     if (role === 'chef' || role === 'barista') {
@@ -91,8 +91,8 @@ export function useSignalR({ role, onNewOrder, onStatusChanged, onNewItems, onMy
 
     // ── Cleanup on unmount or role change ──────────────────────────────
     return () => {
-      offEvent(SIGNALR_EVENTS.NEW_ORDER_PLACED, handleNewOrder);
-      offEvent(SIGNALR_EVENTS.ORDER_STATUS_CHANGED, handleStatusChanged);
+      offEvent(SIGNALR_EVENTS.NEW_ORDER_CREATED, handleNewOrder);
+      offEvent(SIGNALR_EVENTS.ORDER_STATUS_UPDATED, handleStatusChanged);
       offEvent(SIGNALR_EVENTS.NEW_ITEMS_TO_PREPARE, handleNewItems);
       offEvent(SIGNALR_EVENTS.MY_ORDER_STATUS_UPDATE, handleMyOrderUpdate);
       stopConnection();

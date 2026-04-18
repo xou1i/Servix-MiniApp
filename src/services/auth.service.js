@@ -28,12 +28,12 @@ export const authService = {
   },
 
   /**
-   * GET /api/v1/Auth/me
+   * GET /api/v1/Auth/profile
    * Requires: Authorization: Bearer {token} (auto-attached by interceptor)
    * Returns: { id, firstName, lastName, role } (after unwrapping envelope)
    */
   getCurrentUser: async () => {
-    const { data } = await api.get('/Auth/me');
+    const { data } = await api.get('/Auth/profile');
     return unwrap(data); // extracts from { success, data: { id, ... } }
   },
 

@@ -212,12 +212,12 @@ export const useOrderStore = create((set, get) => ({
 
     try {
       const payload = {
-        orderType: state.context.type === 'dine-in' ? 'dineIn' : (state.context.type || 'takeaway'),
         tableId: state.context.type === 'dine-in' ? (state.context.tableId || null) : null,
-        note: state.orderNote || undefined,
+        notes: state.orderNote || undefined,
         items: state.cart.map(item => ({
           menuItemId: item.productId || item.id,
-          quantity: item.qty || 1
+          quantity: item.qty || 1,
+          notes: item.notes || undefined
         }))
       };
 
