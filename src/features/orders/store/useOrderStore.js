@@ -6,6 +6,7 @@ import { orderSyncService } from '../api/OrderSyncService';
 import { menuService } from '../../../services/menu.service';
 import { ordersService } from '../../../services/orders.service';
 import { tablesService } from '../../../services/tables.service';
+import { authService } from '../../../services/auth.service';
 import api, { unwrap } from '../../../services/api';
 
 export const useOrderStore = create((set, get) => ({
@@ -211,27 +212,37 @@ export const useOrderStore = create((set, get) => ({
     set({ lifecycle: 'sending' });
 
     try {
+      const storedUser = authService.getStoredUser();
+      const orderTypeMap = {
+        'dine-in': 'DineIn',
+        'takeaway': 'TakeAway',
+        'delivery': 'Delivery'
+      };
+
       const payload = {
+        userId: storedUser?.id || null,
+        orderType: orderTypeMap[state.context.type] ?? 'DineIn',
         tableId: state.context.type === 'dine-in' ? (state.context.tableId || null) : null,
-        notes: state.orderNote || undefined,
+        specialNotes: state.orderNote || '',
         items: state.cart.map(item => ({
           menuItemId: item.productId || item.id,
           quantity: item.qty || 1,
-          notes: item.notes || undefined
+          specialInstructions: item.notes || ''
         }))
       };
 
-      console.log('[Order] Submitting payload:', payload);
+      console.log('[Order] Submitting payload to Swagger DTO:', payload);
 
       const result = await ordersService.create(payload);
 
       console.log('[Order] Created successfully:', result);
 
-      // The API often returns a lean payload. Patch it with local data so the OrderCard renders correctly instantly.
+      // Patch the result with local data so the OrderCard renders correctly instantly.
+      // Use state.context.tableCode which holds the human-readable table number (e.g., M1).
       const fullResult = {
         ...result,
-        tableNumber: payload.tableId?.replace('T', ''),
-        notes: payload.note,
+        tableNumber: state.context.tableCode || payload.tableId,
+        notes: payload.specialNotes,
         items: state.cart.map(i => ({
           menuItemName: i.name || 'صنف',
           quantity: i.qty || 1,
