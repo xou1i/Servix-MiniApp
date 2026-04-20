@@ -127,11 +127,6 @@ function OrderCard({ order, roleKey }) {
                 order.type === 'delivery' ? (isAr ? 'توصيل' : 'Delivery') : ''}
             </span>
           )}
-          {order._sourceLabel && (
-            <span className="px-2 py-[3px] rounded-md text-[10px] font-black shrink-0 bg-slate-800 text-white shadow-sm">
-              {isAr ? 'مستورد' : 'Imported'}· {order._sourceLabel}
-            </span>
-          )}
         </div>
         <div className="shrink-0">
           <StatusBadge status={order.status} lang={language} />
@@ -147,6 +142,27 @@ function OrderCard({ order, roleKey }) {
             <span className="inline-flex items-center bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-slate-800 font-extrabold text-[12px] shadow-sm">
               {isAr ? `طاولة T${tableCode}` : `Table T${tableCode}`}
             </span>
+          </div>
+        )}
+
+        {/* Customer Badge (Delivery only) */}
+        {order.type === 'delivery' && (
+          <div className="flex flex-col gap-1.5 mb-2">
+            {roleKey === 'cashier' && order.customerName && (
+               <div className="flex justify-start">
+                  <span className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg text-blue-800 font-black text-[12px] shadow-sm">
+                    {order.customerName}
+                  </span>
+               </div>
+            )}
+            {order.deliveryAddress && (
+              <div className="flex items-start gap-1.5 px-1">
+                <MapPin size={13} className="text-slate-400 mt-0.5 shrink-0" />
+                <span className="text-[11px] font-bold text-slate-500 leading-tight">
+                  {order.deliveryAddress}
+                </span>
+              </div>
+            )}
           </div>
         )}
 

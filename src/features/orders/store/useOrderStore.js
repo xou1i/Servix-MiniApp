@@ -257,6 +257,7 @@ export const useOrderStore = create((set, get) => ({
           specialInstructions: item.notes || null
         })),
         // Delivery fields
+        customerName: isDelivery ? (state.context.delivery?.name || null) : null,
         deliveryAddress: isDelivery ? (state.context.delivery?.address || null) : null,
         customerPhoneNumber: isDelivery ? (state.context.delivery?.phone || null) : null,
         deliveryFee: 0, 

@@ -97,7 +97,12 @@ function normalizeOrder(o) {
     trackingUrl: o.trackingUrl,
     isSynced: o.isSyncedToExternalProvider,
     courier: o.courierName ? { name: o.courierName, phone: o.courierPhoneNumber } : null,
-    externalId: o.externalPublicId || o.externalOrderId
+    externalId: o.externalPublicId || o.externalOrderId,
+    
+    // Customer Info
+    customerName: o.customerName || (o.delivery ? o.delivery.name : null),
+    deliveryAddress: o.deliveryAddress || (o.delivery ? o.delivery.address : null),
+    customerPhoneNumber: o.customerPhoneNumber || (o.delivery ? o.delivery.phone : null)
   };
 }
 
@@ -194,7 +199,13 @@ export function AppStateProvider({ children }) {
         if (normalizedStatus === 'completed') normalizedStatus = 'paid';
 
         setOrders(prev => prev.map(o =>
-          o.id === data.orderId ? { ...o, status: normalizedStatus } : o
+          o.id === data.orderId 
+            ? { 
+                ...o, 
+                ...normalizeOrder(data), // Use full normalized data if available
+                status: normalizedStatus 
+              } 
+            : o
         ));
 
         const meta = STATUS_META[normalizedStatus];
@@ -229,7 +240,13 @@ export function AppStateProvider({ children }) {
         if (normalizedStatus === 'pending' || normalizedStatus === 'confirmed') normalizedStatus = 'preparing';
         if (normalizedStatus === 'completed') normalizedStatus = 'paid';
         setOrders(prev => prev.map(o =>
-          o.id === data.orderId ? { ...o, status: normalizedStatus } : o
+          o.id === data.orderId 
+            ? { 
+                ...o, 
+                ...normalizeOrder(data), // Ensure courier/tracking Info is merged
+                status: normalizedStatus 
+              } 
+            : o
         ));
       }
     }, []),
