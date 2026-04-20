@@ -11,7 +11,7 @@ export default function OrderCart({ roleKey }) {
      cart, lifecycle, undoLastAction, undoStack, updateQuantity, removeItem, splitItem, 
      context, setContext, submitOrder, orderNote, setOrderNote, openContextModal
    } = useOrderStore();
-   const { addNewOrderToState } = useAppState();
+   const { addNewOrderToState, refetchOrders } = useAppState();
    const navigate = useNavigate();
    const [isPrinting, setIsPrinting] = useState(false);
 
@@ -237,10 +237,16 @@ export default function OrderCart({ roleKey }) {
          <div className="flex gap-2">
            <button 
              onClick={async () => {
-                await submitOrder(async (result) => {
-                  if (result) addNewOrderToState(result);
-                  navigate('/orders');
-                });
+                try {
+                  await submitOrder(async (result) => {
+                    if (result) addNewOrderToState(result);
+                    // Fire-and-forget refetch — don't block navigation
+                    refetchOrders?.();
+                    navigate(`/${roleKey}/orders`);
+                  });
+                } catch (err) {
+                  console.error('[OrderCart] Submit error:', err);
+                }
              }}
              disabled={cart.length === 0 || lifecycle === 'sending' || lifecycle === 'sent' || !effectiveContext.type}
              className={`flex-1 btn-primary py-4 text-[15px] rounded-2xl justify-center shadow-lg transition-all ${

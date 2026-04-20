@@ -128,6 +128,40 @@ export function getConnectionState() {
   return connection?.state ?? null;
 }
 
+/**
+ * Join a SignalR group (e.g., "Kitchen", "Barista").
+ * Must be called after the connection is started.
+ * @param {string} groupName
+ * @returns {Promise<void>}
+ */
+export async function joinGroup(groupName) {
+  if (!connection) {
+    console.warn('[SignalR] Cannot join group — no connection.');
+    return;
+  }
+  try {
+    await connection.invoke('JoinGroup', groupName);
+    console.log(`[SignalR] ✅ Joined group: ${groupName}`);
+  } catch (err) {
+    console.warn(`[SignalR] Failed to join group "${groupName}":`, err.message);
+  }
+}
+
+/**
+ * Leave a SignalR group.
+ * @param {string} groupName
+ * @returns {Promise<void>}
+ */
+export async function leaveGroup(groupName) {
+  if (!connection) return;
+  try {
+    await connection.invoke('LeaveGroup', groupName);
+    console.log(`[SignalR] 🛑 Left group: ${groupName}`);
+  } catch (err) {
+    console.warn(`[SignalR] Failed to leave group "${groupName}":`, err.message);
+  }
+}
+
 // ── SignalR Event Names (constants to avoid typos) ──────────────────────────
 export const SIGNALR_EVENTS = {
   NEW_ORDER_CREATED: 'NewOrderCreated',
@@ -146,5 +180,7 @@ export const signalRService = {
   onEvent,
   offEvent,
   getConnectionState,
+  joinGroup,
+  leaveGroup,
   SIGNALR_EVENTS,
 };

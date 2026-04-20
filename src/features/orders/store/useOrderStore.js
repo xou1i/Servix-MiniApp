@@ -92,6 +92,13 @@ export const useOrderStore = create((set, get) => ({
     const prevState = currentState.cart;
     const groupId = generateGroupId(product.id, modifiers, notes);
 
+    // Resolve departmentName: prefer product.departmentName, else look up from category
+    let resolvedDeptName = product.departmentName || '';
+    if (!resolvedDeptName && product.categoryId) {
+      const cat = currentState.categories.find(c => c.id === product.categoryId);
+      if (cat?.departmentName) resolvedDeptName = cat.departmentName;
+    }
+
     set((state) => {
       const existing = state.cart.find(i => i.groupId === groupId);
       const newCart = existing
@@ -105,7 +112,7 @@ export const useOrderStore = create((set, get) => ({
           modifiers,
           notes,
           qty: 1,
-          product
+          product: { ...product, departmentName: resolvedDeptName }
         }];
 
       return {
@@ -219,22 +226,42 @@ export const useOrderStore = create((set, get) => ({
         'delivery': 'Delivery'
       };
 
+      const isDelivery = state.context.type === 'delivery';
+
+      // --- NEW: Geolocation Handling ---
+      let lat = 0;
+      let lng = 0;
+
+      if (isDelivery && navigator.geolocation) {
+        try {
+          // Attempt to get location (timeout after 5s to avoid hanging)
+          const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+          });
+          lat = pos.coords.latitude;
+          lng = pos.coords.longitude;
+          console.log('[Order] Geolocation captured:', { lat, lng });
+        } catch (geoErr) {
+          console.warn('[Order] Geolocation failed or denied, using 0:', geoErr.message);
+        }
+      }
+
       const payload = {
         userId: storedUser?.id || null,
         orderType: orderTypeMap[state.context.type] ?? 'DineIn',
         tableId: state.context.type === 'dine-in' ? (state.context.tableId || null) : null,
-        specialNotes: state.orderNote || '',
+        specialNotes: state.orderNote || null,
         items: state.cart.map(item => ({
           menuItemId: item.productId || item.id,
           quantity: item.qty || 1,
-          specialInstructions: item.notes || ''
+          specialInstructions: item.notes || null
         })),
-        // Delivery fields — required by Render backend for Delivery orders
-        deliveryAddress: state.context.delivery?.address || '',
-        customerPhoneNumber: state.context.delivery?.phone || '',
-        deliveryFee: 0,
-        latitude: 0,
-        longitude: 0,
+        // Delivery fields
+        deliveryAddress: isDelivery ? (state.context.delivery?.address || null) : null,
+        customerPhoneNumber: isDelivery ? (state.context.delivery?.phone || null) : null,
+        deliveryFee: 0, 
+        latitude: isDelivery ? lat : null,
+        longitude: isDelivery ? lng : null,
       };
 
       console.log('[Order] Submitting payload to Swagger DTO:', payload);
@@ -277,7 +304,27 @@ export const useOrderStore = create((set, get) => ({
       }, 300);
 
     } catch (err) {
-      console.error('[Order] Submission failed:', err?.response?.data || err.message);
+      const respData = err?.response?.data;
+      const errorMsg = respData?.message || err?.message || 'Unknown error';
+      const errorFields = respData?.errors;
+      
+      // Flatten field-specific errors: { "Items[0].MenuItemId": ["Invalid GUID"] } → readable string
+      let fieldErrors = '';
+      if (errorFields && typeof errorFields === 'object') {
+        fieldErrors = Object.entries(errorFields)
+          .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+          .join('\n');
+      }
+      
+      console.error('[Order] Submission failed:', errorMsg, fieldErrors, respData);
+      
+      // Show user-visible error
+      const isTimeout = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout');
+      const userMsg = isTimeout
+        ? 'السيرفر لم يستجب — حاول مرة ثانية بعد لحظات'
+        : `فشل إرسال الطلب:\n${errorMsg}${fieldErrors ? '\n\n' + fieldErrors : ''}`;
+      
+      alert(userMsg);
       set({ lifecycle: 'draft' });
     }
   }

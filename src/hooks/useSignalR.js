@@ -5,6 +5,8 @@ import {
   stopConnection,
   onEvent,
   offEvent,
+  joinGroup,
+  leaveGroup,
   SIGNALR_EVENTS,
 } from '../services/signalr.service';
 import { authService } from '../services/auth.service';
@@ -86,11 +88,22 @@ export function useSignalR({ role, onNewOrder, onStatusChanged, onNewItems, onMy
       onEvent(SIGNALR_EVENTS.MY_ORDER_STATUS_UPDATE, handleMyOrderUpdate);
     }
 
-    // Start the connection
-    startConnection();
+    // Start the connection, then join department groups
+    startConnection().then(() => {
+      // Chef → join Kitchen group; Barista → join Barista group
+      if (role === 'chef') {
+        joinGroup('Kitchen');
+      } else if (role === 'barista') {
+        joinGroup('Barista');
+      }
+    });
 
     // ── Cleanup on unmount or role change ──────────────────────────────
     return () => {
+      // Leave groups before disconnecting
+      if (role === 'chef') leaveGroup('Kitchen').catch(() => {});
+      if (role === 'barista') leaveGroup('Barista').catch(() => {});
+
       offEvent(SIGNALR_EVENTS.NEW_ORDER_CREATED, handleNewOrder);
       offEvent(SIGNALR_EVENTS.ORDER_STATUS_UPDATED, handleStatusChanged);
       offEvent(SIGNALR_EVENTS.NEW_ITEMS_TO_PREPARE, handleNewItems);

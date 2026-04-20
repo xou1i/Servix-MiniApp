@@ -8,31 +8,49 @@ import { ordersService } from '../services/orders.service';
 import { useSignalR } from '../hooks/useSignalR';
 import { authService } from '../services/auth.service';
 
+// ── Helper: map any department name (Arabic or English) to canonical key ───
+// Backend may send: "Kitchen", "Barista", "المطبخ", "البارستا", "المشروبات والعصائر", etc.
+const KITCHEN_NAMES = ['kitchen', 'مطبخ', 'المطبخ', 'المطابخ', 'رئيسي', 'الرئيسي', 'ساخن', 'الساخن', 'وجبات', 'اكل', 'طعام'];
+const BARISTA_NAMES = ['barista', 'بارستا', 'باريستا', 'البارستا', 'المشروبات والعصائر', 'المشروبات', 'مشروبات', 'عصائر', 'بارد', 'البارد', 'قهوة'];
+
+function resolveDeptKey(departmentName) {
+  if (!departmentName) return null;
+  const d = departmentName.trim().toLowerCase();
+  
+  const isKitchen = KITCHEN_NAMES.some(k => d.includes(k));
+  const isBarista = BARISTA_NAMES.some(k => d.includes(k));
+  
+  if (isKitchen) return 'kitchen';
+  if (isBarista) return 'barista';
+  
+  console.warn(`[resolveDeptKey] Unknown department: "${departmentName}"`);
+  return null; 
+}
+
 // ── Helper: normalize a single backend order into frontend shape ──────────
 function normalizeOrder(o) {
   const rawItems = Array.isArray(o.items) ? o.items : [];
 
+  // Enrich each raw item with a canonical _deptKey for consistent filtering
+  const enrichedItems = rawItems.map(ri => ({
+    ...ri,
+    _deptKey: resolveDeptKey(ri.departmentName),
+  }));
+
   // Format for OrderCard (expects array of strings)
-  const itemStrings = rawItems.map(ri =>
+  const itemStrings = enrichedItems.map(ri =>
     `${ri.quantity > 1 ? ri.quantity + 'x ' : ''}${ri.menuItemName || ri.name || 'صنف'}`
   );
 
-  // Kitchen handles all food; Barista handles drinks
-  const baristaDepartmentNames = ['البارستا', 'المشروبات والعصائر'];
+  // ── Department-based item splitting ────────────────────────────────────
+  // Uses the resolved _deptKey for reliable matching
+  const kitchenStrs = enrichedItems
+    .filter(ri => ri._deptKey === 'kitchen')
+    .map(ri => `${ri.quantity > 1 ? ri.quantity + 'x ' : ''}${ri.menuItemName || ri.name || 'صنف'}`);
 
-  const kitchenStrs =
-    Array.isArray(o.kitchenItems) && typeof o.kitchenItems[0] === 'string'
-      ? o.kitchenItems
-      : rawItems
-          .filter(ri => !baristaDepartmentNames.includes(ri.departmentName))
-          .map(ri => `${ri.quantity > 1 ? ri.quantity + 'x ' : ''}${ri.menuItemName || ri.name || 'صنف'}`);
-
-  const baristaStrs =
-    Array.isArray(o.baristaItems) && typeof o.baristaItems[0] === 'string'
-      ? o.baristaItems
-      : rawItems
-          .filter(ri => baristaDepartmentNames.includes(ri.departmentName))
-          .map(ri => `${ri.quantity > 1 ? ri.quantity + 'x ' : ''}${ri.menuItemName || ri.name || 'صنف'}`);
+  const baristaStrs = enrichedItems
+    .filter(ri => ri._deptKey === 'barista')
+    .map(ri => `${ri.quantity > 1 ? ri.quantity + 'x ' : ''}${ri.menuItemName || ri.name || 'صنف'}`);
 
   // Normalize Backend Status -> Frontend ORDER_STATUS
   // Backend sends: Pending, Confirmed, Preparing, Ready, Served, Completed, Cancelled
@@ -65,10 +83,21 @@ function normalizeOrder(o) {
     minutesAgo,
     // Notes: backend may use note, notes, specialNotes, or customerNotes
     notes: o.note || o.notes || o.specialNotes || o.customerNotes || '',
-    _rawItems: rawItems,
+    _rawItems: enrichedItems,
     items: itemStrings.length > 0 ? itemStrings : (o.items || []),
     kitchenItems: kitchenStrs.length > 0 ? kitchenStrs : (o.kitchenItems || []),
     baristaItems: baristaStrs.length > 0 ? baristaStrs : (o.baristaItems || []),
+    
+    // External Source Detection
+    _isTeam6: (o.note || o.notes || o.specialNotes || '').includes('Team6'),
+    _sourceLabel: (o.note || o.notes || o.specialNotes || '').includes('Team6') ? 'Team 6' : (o.partnerSource || o.externalPublicId ? (o.partnerSource || 'External') : null),
+    
+    // Delivery Sync & Tracking fields
+    externalDeliveryStatus: o.externalDeliveryStatus,
+    trackingUrl: o.trackingUrl,
+    isSynced: o.isSyncedToExternalProvider,
+    courier: o.courierName ? { name: o.courierName, phone: o.courierPhoneNumber } : null,
+    externalId: o.externalPublicId || o.externalOrderId
   };
 }
 
@@ -220,7 +249,8 @@ export function AppStateProvider({ children }) {
     );
 
     // Sync with API
-    ordersService.updateStatus(orderId, nextStatus).catch(err => {
+    const apiStatus = nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1);
+    ordersService.updateStatus(orderId, apiStatus).catch(err => {
       console.error('[AppState] Failed to update order status via API:', err.message);
     });
 
@@ -247,22 +277,42 @@ export function AppStateProvider({ children }) {
   }, [language]);
 
   const updateDepartmentStatus = useCallback((orderId, department, nextStatus) => {
+    console.log(`[AppState] Updating ${department} to ${nextStatus} for order ${orderId}`);
+    let finalAggregateStatus = null;
+
     setOrders((prev) =>
       prev.map((o) => {
         if (o.id !== orderId) return o;
         
-        const newKitchenStatus = department === 'kitchen' ? nextStatus : o.kitchenStatus;
-        const newBaristaStatus = department === 'barista' ? nextStatus : o.baristaStatus;
+        const newKitchenStatus = department === 'kitchen' ? nextStatus : (o.kitchenStatus || o.status);
+        const newBaristaStatus = department === 'barista' ? nextStatus : (o.baristaStatus || o.status);
         
         const resolvedStatuses = [ORDER_STATUS.ready, ORDER_STATUS.served, ORDER_STATUS.billed, ORDER_STATUS.paid, ORDER_STATUS.cancelled];
-        const kitchenResolved = !o.kitchenItems?.length || resolvedStatuses.includes(newKitchenStatus);
-        const baristaResolved = !o.baristaItems?.length || resolvedStatuses.includes(newBaristaStatus);
+        const rawItems = o._rawItems || [];
+        const hasKitchenItems = rawItems.some(ri => ri._deptKey === 'kitchen');
+        const hasBaristaItems = rawItems.some(ri => ri._deptKey === 'barista');
+        
+        console.log(`[AppState] Order ${orderId} hasKitchen: ${hasKitchenItems}, hasBarista: ${hasBaristaItems}`);
+
+        const kitchenResolved = !hasKitchenItems || resolvedStatuses.includes(newKitchenStatus);
+        const baristaResolved = !hasBaristaItems || resolvedStatuses.includes(newBaristaStatus);
         
         let newOrderStatus = o.status;
-        if (kitchenResolved && baristaResolved) {
-           newOrderStatus = (newKitchenStatus === ORDER_STATUS.served || newBaristaStatus === ORDER_STATUS.served) ? ORDER_STATUS.served : ORDER_STATUS.ready;
-        }
         
+        if (kitchenResolved && baristaResolved) {
+          if (newKitchenStatus === ORDER_STATUS.served || newBaristaStatus === ORDER_STATUS.served) {
+            newOrderStatus = ORDER_STATUS.served;
+          } else {
+            newOrderStatus = ORDER_STATUS.ready;
+          }
+        } 
+        else if (newKitchenStatus === ORDER_STATUS.preparing || newBaristaStatus === ORDER_STATUS.preparing || o.status === ORDER_STATUS.preparing) {
+          newOrderStatus = ORDER_STATUS.preparing;
+        }
+
+        finalAggregateStatus = newOrderStatus;
+        console.log(`[AppState] Computed global status: ${newOrderStatus}`);
+
         return { 
           ...o, 
           kitchenStatus: newKitchenStatus, 
@@ -271,6 +321,13 @@ export function AppStateProvider({ children }) {
         };
       })
     );
+
+    if (finalAggregateStatus) {
+      const apiStatus = finalAggregateStatus.charAt(0).toUpperCase() + finalAggregateStatus.slice(1);
+      ordersService.updateStatus(orderId, apiStatus).catch(err => {
+        console.error('[AppState] Syncing department status failed:', err.message);
+      });
+    }
   }, []);
 
   const addOrder = useCallback((rawOrder) => {

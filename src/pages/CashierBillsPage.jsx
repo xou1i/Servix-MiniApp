@@ -115,7 +115,7 @@ function CashierBillsPage({ roleKey }) {
                   <div key={idx} className="flex justify-between">
                     {/* Fallback to string display if `item` is magically still just a string */}
                     <span className="truncate w-2/3">{typeof item === 'string' ? item : (item.menuItemName || item.name || 'الصنف')}</span>
-                    <span>{typeof item === 'string' ? '' : formatIQD(item.unitPrice * item.quantity)}</span>
+                    <span>{typeof item === 'string' ? '' : formatIQD((item.price || item.unitPrice || 0) * (item.quantity || 1))}</span>
                   </div>
                 ))}
               </div>

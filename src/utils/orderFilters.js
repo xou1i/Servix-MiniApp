@@ -15,8 +15,14 @@ export function matchesStatusFilter(order, statusFilter) {
 
 export function matchesDepartmentFilter(order, departmentKey) {
   if (departmentKey === 'all') return true;
-  if (departmentKey === DEPARTMENT.kitchen) return (order.kitchenItems?.length ?? 0) > 0;
-  if (departmentKey === DEPARTMENT.barista) return (order.baristaItems?.length ?? 0) > 0;
+  // Use _rawItems (enriched with _deptKey) for reliable department matching
+  const rawItems = order._rawItems || [];
+  if (departmentKey === DEPARTMENT.kitchen) {
+    return rawItems.some(ri => ri._deptKey === 'kitchen');
+  }
+  if (departmentKey === DEPARTMENT.barista) {
+    return rawItems.some(ri => ri._deptKey === 'barista');
+  }
   return true;
 }
 

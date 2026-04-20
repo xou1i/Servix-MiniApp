@@ -56,7 +56,7 @@ export const ordersService = {
    * Note: Backend computes global_status automatically
    */
   updateStatus: async (id, status) => {
-    const { data } = await api.put(`/Orders/${id}/status`, { status });
+    const { data } = await api.patch(`/Orders/${id}/status`, { newStatus: status });
     return unwrap(data);
   },
 };
